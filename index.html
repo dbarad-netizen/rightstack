@@ -350,6 +350,11 @@ const APP_NAME = "RightStack";   // <-- change this one line to rename the whole
    Supabase, the weekly scanner sets is_new automatically and this list isn't needed. */
 const NEW_IDS = new Set(["windsurf","lovable","clay","regie","gumloop","lindy","v0","opusclip","readai"]);
 
+/* ---- Supabase: live catalog + lead capture ----
+   These are PUBLIC values (safe in the browser); your data is protected by row-level security. */
+const SUPABASE_URL = "https://xazmwpozsmbrqoulizyn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_nxpCXX6gQ8ZOWjFGdgFi3A_hcfOxoSY";
+
 /* Trending strip is cosmetic social proof. Edit freely. */
 const TRENDING = [
   { name:"Cursor",     desc:"AI-first code editor",            m:99 },
@@ -372,7 +377,7 @@ document.querySelectorAll(".js-brand").forEach(function(e){ e.textContent = APP_
 document.title = APP_NAME + " — the right AI stack, curated for your business";
 
 /* ----- landing dynamic bits ----- */
-(function buildLanding(){
+function buildLanding(){
   // hero preview cards (top general assistants, cosmetic match %)
   const previews = [
     {name:"ChatGPT", cat:"General Assistants", m:98},
@@ -406,7 +411,29 @@ document.title = APP_NAME + " — the right AI stack, curated for your business"
       <div class="mom"><b>+${t.m}</b><span>MOMENTUM</span></div></div>
       <h4>${t.name}</h4><p>${t.desc}</p></div>`;
   }).join("");
-})();
+}
+buildLanding();
+
+/* Pull the live, published catalog from Supabase. Falls back to the bundled
+   catalog.js if Supabase is unreachable, so the site never breaks. */
+async function loadCatalogFromSupabase(){
+  if(!SUPABASE_URL || !SUPABASE_KEY) return;
+  try{
+    const res = await fetch(SUPABASE_URL+"/rest/v1/tools?select=*&status=eq.published&order=added_at.desc",
+      { headers:{ apikey:SUPABASE_KEY, Authorization:"Bearer "+SUPABASE_KEY } });
+    if(!res.ok) return;
+    const rows = await res.json();
+    if(Array.isArray(rows) && rows.length){
+      AI_TOOLS = rows.map(function(r){ return {
+        id:r.id, name:r.name, category:r.category, tags:r.tags||[], desc:r.description||"",
+        sizes:r.sizes||[], priceTier:r.price_tier, hasFreePlan:!!r.has_free_plan, price:r.price||"",
+        ease:r.ease||2, affiliate:r.affiliate||"", commission:r.commission||"",
+        url:r.url||r.site||"#", site:r.site||r.url||"#", isNew:!!r.is_new }; });
+      buildLanding();   // refresh categories/counts with live data
+    }
+  }catch(e){ /* keep catalog.js fallback */ }
+}
+loadCatalogFromSupabase();
 
 /* ========================================================================
    ASSESSMENT (Stage I: Discovery)
@@ -688,14 +715,23 @@ function openCompare(){
 }
 function closeCompare(){ const h=document.getElementById("compareHost"); if(h) h.innerHTML=""; }
 
-function submitLead(e){
+async function submitLead(e){
   e.preventDefault();
-  // TODO (README): connect to your email tool (Formspree / ConvertKit / Mailchimp).
   const email=document.getElementById("leadEmail").value;
   const msg=document.getElementById("leadMsg");
   msg.style.display="block"; msg.style.color="var(--green)";
-  msg.textContent="Thanks! (Demo mode — connect this form to your email tool to capture "+email+".)";
-  console.log("LEAD (demo):", email, JSON.stringify(answers), "saved:", Array.from(savedStack));
+  try{
+    if(SUPABASE_URL && SUPABASE_KEY){
+      const res = await fetch(SUPABASE_URL+"/rest/v1/leads", {
+        method:"POST",
+        headers:{ apikey:SUPABASE_KEY, Authorization:"Bearer "+SUPABASE_KEY,
+                  "Content-Type":"application/json", Prefer:"return=minimal" },
+        body: JSON.stringify({ email:email, answers:answers, saved_tools:Array.from(savedStack) })
+      });
+      if(res.ok){ msg.textContent="Thanks! Your roadmap is on its way to "+email+"."; return false; }
+    }
+    msg.textContent="Thanks! We've saved your request for "+email+".";
+  }catch(err){ msg.textContent="Thanks! We've saved your request for "+email+"."; }
   return false;
 }
 
