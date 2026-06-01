@@ -81,6 +81,37 @@
   .barfill{height:100%;background:linear-gradient(90deg,var(--indigo),var(--indigo2));border-radius:6px}
   .barval{flex:0 0 auto;font-family:var(--mono);font-size:13px;color:var(--ink);min-width:26px;text-align:right}
   .anafoot{color:var(--dim);font-size:12px;margin-top:16px;line-height:1.5}
+  /* add-tool modal */
+  .modalbg{position:fixed;inset:0;background:rgba(3,3,8,.66);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:50}
+  .modal{width:100%;max-width:660px;background:var(--panel);border:1px solid var(--line2);border-radius:18px;padding:26px 26px 22px}
+  .modal h2{margin:0 0 4px;font-size:21px}
+  .modal .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  @media(max-width:560px){.frow{grid-template-columns:1fr}}
+  .ffull{grid-column:1/-1}
+  .flabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;color:var(--dim);text-transform:uppercase;display:block;margin-bottom:5px}
+  .modal input[type=text],.modal textarea,.modal select{width:100%;background:var(--panel2);border:1px solid var(--line2);color:#fff;border-radius:10px;padding:10px 12px;font-family:var(--grot);font-size:14px}
+  .modal textarea{resize:vertical;min-height:58px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{font-size:12px;padding:6px 11px;border-radius:8px;border:1px solid var(--line2);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;user-select:none}
+  .chip.on{background:rgba(108,108,245,.18);border-color:rgba(108,108,245,.5);color:#cdc9ff}
+  .checkline{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:14px}
+  .modalfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+  #addMsg{color:var(--red);font-size:13px;min-height:18px;margin-top:8px}
+  /* bulk-select */
+  th.cb,td.cb{width:38px;text-align:center;padding-left:14px;padding-right:0}
+  input.bcb{appearance:none;width:17px;height:17px;border:1.5px solid var(--line2);border-radius:5px;background:var(--panel2);cursor:pointer;position:relative;vertical-align:middle;margin:0}
+  input.bcb:checked{background:var(--indigo);border-color:var(--indigo)}
+  input.bcb:checked:after{content:"";position:absolute;left:4px;top:0px;width:5px;height:10px;border:solid #fff;border-width:0 2.4px 2.4px 0;transform:rotate(45deg)}
+  input.bcb:indeterminate{background:var(--indigo);border-color:var(--indigo)}
+  input.bcb:indeterminate:after{content:"";position:absolute;left:3px;top:6.5px;width:9px;height:2.4px;background:#fff}
+  tr.selrow td{background:rgba(108,108,245,.07)}
+  #bulkbar{position:fixed;bottom:0;left:0;right:0;background:#0c0d18;border-top:1px solid var(--line2);padding:12px 22px;display:none;align-items:center;gap:12px;z-index:40;box-shadow:0 -12px 28px rgba(0,0,0,.4)}
+  #bulkbar.show{display:flex}
+  #bulkbar .bcount{font-weight:700;font-size:14px}
+  #bulkbar .bcount .n{font-family:var(--mono);color:var(--indigo2);margin-right:4px}
+  #bulkbar .bactions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  #bulkbar .mini{padding:8px 13px}
 </style>
 </head>
 <body>
@@ -104,6 +135,7 @@
       <span class="gem"></span>
       <div><div class="brand" style="gap:0">RightStack Admin</div><div class="tag">Catalog review queue</div></div>
       <div class="right">
+        <button class="btn primary" onclick="openAddForm()">+ Add tool</button>
         <button class="btn line" onclick="load()">↻ Refresh</button>
         <button class="btn ghost" onclick="lock()">Lock</button>
       </div>
@@ -129,6 +161,74 @@
     <div id="list"></div>
   </div>
 </div>
+
+<!-- ADD TOOL MODAL -->
+<div id="addModal" class="modalbg hide" onclick="if(event.target===this)closeAddForm()">
+  <div class="modal">
+    <h2>Add a tool</h2>
+    <p class="sub">New tools land in your <b>Review</b> queue by default — publish them when you're ready.</p>
+
+    <div class="frow">
+      <div><label class="flabel">ID / slug *</label><input type="text" id="f_id" placeholder="e.g. jasper (lowercase, no spaces)" /></div>
+      <div><label class="flabel">Name *</label><input type="text" id="f_name" placeholder="e.g. Jasper" /></div>
+    </div>
+    <div class="frow">
+      <div><label class="flabel">Category</label><input type="text" id="f_category" placeholder="e.g. Marketing copywriter" /></div>
+      <div><label class="flabel">Starting price</label><input type="text" id="f_price" placeholder="e.g. $39/mo or Free" /></div>
+    </div>
+    <div class="ffull" style="margin-bottom:12px">
+      <label class="flabel">Description</label>
+      <textarea id="f_desc" placeholder="One sentence on what it does and who it's for."></textarea>
+    </div>
+    <div class="ffull" style="margin-bottom:12px">
+      <label class="flabel">Use-cases (tags) — pick all that apply *</label>
+      <div class="chips" id="f_tags"></div>
+    </div>
+    <div class="ffull" style="margin-bottom:12px">
+      <label class="flabel">Company sizes it fits</label>
+      <div class="chips" id="f_sizes"></div>
+    </div>
+    <div class="frow">
+      <div><label class="flabel">Price tier</label>
+        <select id="f_tier"><option value="">—</option><option value="free">Free</option><option value="low">Low ($)</option><option value="mid">Mid ($$)</option><option value="high">High ($$$)</option></select></div>
+      <div><label class="flabel">Setup ease</label>
+        <select id="f_ease"><option value="">—</option><option value="1">Easy</option><option value="2">Moderate</option><option value="3">Advanced</option></select></div>
+    </div>
+    <div class="frow">
+      <div><label class="flabel">Affiliate program</label><input type="text" id="f_affiliate" placeholder="e.g. PartnerStack, Impact, or None" /></div>
+      <div><label class="flabel">Commission</label><input type="text" id="f_commission" placeholder="e.g. 25–30% recurring" /></div>
+    </div>
+    <div class="frow">
+      <div><label class="flabel">Affiliate / “Try” link (url)</label><input type="text" id="f_url" placeholder="https://your-affiliate-link" /></div>
+      <div><label class="flabel">Homepage (site)</label><input type="text" id="f_site" placeholder="https://tool.com" /></div>
+    </div>
+    <div class="frow">
+      <div><label class="flabel">Status</label>
+        <select id="f_status"><option value="review">Review (default)</option><option value="published">Published (live now)</option></select></div>
+      <div class="checkline" style="align-self:end;padding-bottom:10px">
+        <input type="checkbox" id="f_free" /> <label for="f_free">Has a free plan</label></div>
+    </div>
+
+    <div id="addMsg"></div>
+    <div class="modalfoot">
+      <button class="btn ghost" onclick="closeAddForm()">Cancel</button>
+      <button class="btn primary" onclick="submitAddTool()">Add tool</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK ACTION BAR -->
+<div id="bulkbar">
+  <div class="bcount"><span class="n" id="bSelN">0</span> selected</div>
+  <button class="mini" onclick="clearSel()">Clear</button>
+  <div class="bactions">
+    <button class="mini pub" onclick="bulkAct('published')">Publish</button>
+    <button class="mini" onclick="bulkAct('review')">To review</button>
+    <button class="mini arch" onclick="bulkAct('archived')">Archive</button>
+    <button class="mini del" onclick="bulkDel()">Delete</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -141,6 +241,8 @@ let TOOLS = [];
 let TAB = "review";
 let RANGE = 30;
 let ANALYTICS = null;
+let SELECTED = new Set();
+let VISIBLE_IDS = [];
 
 async function api(action, extra){
   const res = await fetch(FN_URL, {
@@ -178,6 +280,7 @@ async function load(){
 
 function setTab(t){
   TAB=t;
+  SELECTED.clear();
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on", b.dataset.t===t));
   document.getElementById("search").style.display = (t==="analytics") ? "none" : "";
   render();
@@ -187,27 +290,35 @@ function setRange(n){ RANGE=n; renderAnalytics(); }
 function fmtDate(s){ if(!s) return ""; const d=new Date(s); return isNaN(d)?"":d.toLocaleDateString(); }
 
 function render(){
-  if(TAB==="analytics"){ renderAnalytics(); return; }
+  if(TAB==="analytics"){ VISIBLE_IDS=[]; updateBulkBar(); renderAnalytics(); return; }
   const q = (document.getElementById("search").value||"").toLowerCase();
   let rows = TOOLS.filter(t => TAB==="all" ? true : t.status===TAB);
   if(q) rows = rows.filter(t => ((t.name||"")+" "+(t.category||"")+" "+(t.description||"")).toLowerCase().includes(q));
 
+  VISIBLE_IDS = rows.map(t=>t.id);
+  // prune SELECTED to only currently-visible rows
+  SELECTED = new Set([...SELECTED].filter(id => VISIBLE_IDS.includes(id)));
+
   const host = document.getElementById("list");
-  if(!rows.length){ host.innerHTML = `<div class="empty">Nothing here${TAB==="review"?" — your review queue is clear. New tools land here every week.":"."}</div>`; return; }
+  if(!rows.length){ host.innerHTML = `<div class="empty">Nothing here${TAB==="review"?" — your review queue is clear. New tools land here every week.":"."}</div>`; updateBulkBar(); return; }
 
   host.innerHTML = `<table><thead><tr>
+      <th class="cb"><input type="checkbox" class="bcb" id="headCb" onclick="toggleAllVisible(this.checked)" /></th>
       <th>Tool</th><th>Status</th><th>Source</th><th>Added</th><th style="text-align:right">Actions</th>
     </tr></thead><tbody>` + rows.map(rowHtml).join("") + `</tbody></table>`;
+  updateBulkBar();
 }
 
 function rowHtml(t){
   const isNew = t.is_new ? '<span class="pill new">New</span>' : '';
+  const sel = SELECTED.has(t.id);
   const acts = [];
   if(t.status !== "published") acts.push(`<button class="mini pub" onclick="act('${t.id}','published')">Publish</button>`);
   if(t.status !== "review")    acts.push(`<button class="mini" onclick="act('${t.id}','review')">To review</button>`);
   if(t.status !== "archived")  acts.push(`<button class="mini arch" onclick="act('${t.id}','archived')">Archive</button>`);
   acts.push(`<button class="mini del" onclick="del('${t.id}','${(t.name||'').replace(/'/g,"")}')">Delete</button>`);
-  return `<tr>
+  return `<tr class="${sel?'selrow':''}">
+    <td class="cb"><input type="checkbox" class="bcb" ${sel?'checked':''} onclick="toggleSel('${t.id}',this.checked)" /></td>
     <td><div class="tname">${esc(t.name)} ${isNew}</div><div class="tcat">${esc(t.category||"")}</div>
         ${t.url?`<a class="link" href="${esc(t.url)}" target="_blank" rel="noopener">visit ↗</a>`:""}</td>
     <td><span class="pill ${t.status}">${t.status}</span></td>
@@ -215,6 +326,55 @@ function rowHtml(t){
     <td><span class="src">${fmtDate(t.added_at)}</span></td>
     <td><div class="acts">${acts.join("")}</div></td>
   </tr>`;
+}
+
+/* ===== bulk selection ===== */
+function toggleSel(id, on){
+  if(on) SELECTED.add(id); else SELECTED.delete(id);
+  // toggle row tint without full re-render
+  const cb = document.querySelector(`input.bcb[onclick*="'${id}'"]`);
+  if(cb) cb.closest("tr").classList.toggle("selrow", on);
+  updateBulkBar();
+}
+function toggleAllVisible(on){
+  if(on) VISIBLE_IDS.forEach(id => SELECTED.add(id));
+  else   VISIBLE_IDS.forEach(id => SELECTED.delete(id));
+  render();
+}
+function clearSel(){ SELECTED.clear(); render(); }
+function updateBulkBar(){
+  const n = SELECTED.size;
+  const bar = document.getElementById("bulkbar");
+  bar.classList.toggle("show", n>0);
+  document.getElementById("bSelN").textContent = n;
+  // sync header checkbox state
+  const head = document.getElementById("headCb");
+  if(head){
+    const allSel = VISIBLE_IDS.length>0 && VISIBLE_IDS.every(id=>SELECTED.has(id));
+    head.checked = allSel;
+    head.indeterminate = !allSel && VISIBLE_IDS.some(id=>SELECTED.has(id));
+  }
+}
+async function bulkAct(status){
+  if(!SELECTED.size) return;
+  const ids = [...SELECTED];
+  try{
+    const j = await api("bulk_set_status", { ids, status });
+    toast(`Moved ${j.updated||ids.length} to ${status}`);
+    SELECTED.clear();
+    await load();
+  }catch(e){ toast("Error: "+e.message); }
+}
+async function bulkDel(){
+  if(!SELECTED.size) return;
+  const ids = [...SELECTED];
+  if(!confirm(`Delete ${ids.length} tools permanently? This cannot be undone.`)) return;
+  try{
+    const j = await api("bulk_delete", { ids });
+    toast(`Deleted ${j.deleted||ids.length}`);
+    SELECTED.clear();
+    await load();
+  }catch(e){ toast("Error: "+e.message); }
 }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
@@ -276,6 +436,69 @@ function drawAnalytics(){
     </div>
     <div class="anafoot">First-party, anonymous analytics — no third parties, just counts.
       “Clicks per completion” = affiliate clicks ÷ assessment completions, your core conversion signal.</div>`;
+}
+
+/* ===== add a tool ===== */
+const DOMAINS = [
+  ["sales","Sales & revenue"],["marketing","Marketing & content"],["support","Customer support"],
+  ["knowledge","Knowledge mgmt"],["docs","Docs & RFP"],["automation","Workflow automation"],
+  ["data","Data & analytics"],["hr","HR & recruiting"],["finance","Finance"],
+  ["itdev","IT & dev"],["meetings","Meetings & productivity"]
+];
+const SIZES = [["small","Small / solo"],["mid","Mid-market"],["large","Enterprise"]];
+
+function buildChips(hostId, items){
+  document.getElementById(hostId).innerHTML = items.map(function(it){
+    return `<span class="chip" data-v="${it[0]}" onclick="this.classList.toggle('on')">${it[1]}</span>`;
+  }).join("");
+}
+function selectedChips(hostId){
+  return Array.from(document.querySelectorAll("#"+hostId+" .chip.on")).map(function(c){ return c.dataset.v; });
+}
+function openAddForm(){
+  buildChips("f_tags", DOMAINS);
+  buildChips("f_sizes", SIZES);
+  ["f_id","f_name","f_category","f_price","f_desc","f_affiliate","f_commission","f_url","f_site"]
+    .forEach(function(id){ document.getElementById(id).value=""; });
+  document.getElementById("f_tier").value="";
+  document.getElementById("f_ease").value="";
+  document.getElementById("f_status").value="review";
+  document.getElementById("f_free").checked=false;
+  document.getElementById("addMsg").textContent="";
+  document.getElementById("addModal").classList.remove("hide");
+  document.getElementById("f_id").focus();
+}
+function closeAddForm(){ document.getElementById("addModal").classList.add("hide"); }
+
+async function submitAddTool(){
+  const msg=document.getElementById("addMsg"); msg.style.color="var(--red)"; msg.textContent="";
+  const v = id => document.getElementById(id).value.trim();
+  const tool = {
+    id: v("f_id").toLowerCase().replace(/[^a-z0-9_-]/g,""),
+    name: v("f_name"),
+    category: v("f_category"),
+    description: v("f_desc"),
+    tags: selectedChips("f_tags"),
+    sizes: selectedChips("f_sizes"),
+    price_tier: document.getElementById("f_tier").value,
+    ease: document.getElementById("f_ease").value ? Number(document.getElementById("f_ease").value) : null,
+    has_free_plan: document.getElementById("f_free").checked,
+    price: v("f_price"),
+    affiliate: v("f_affiliate"),
+    commission: v("f_commission"),
+    url: v("f_url"),
+    site: v("f_site"),
+    status: document.getElementById("f_status").value
+  };
+  if(!tool.id || !tool.name){ msg.textContent="ID and Name are required."; return; }
+  if(!tool.tags.length){ msg.textContent="Pick at least one use-case tag — otherwise the tool can't match anyone."; return; }
+  try{
+    await api("add_tool", { tool });
+    closeAddForm();
+    toast("Added “"+tool.name+"” to "+tool.status);
+    setTab(tool.status==="published" ? "published" : "review");
+    await load();
+  }catch(e){ msg.style.color="var(--red)"; msg.textContent = e.message; }
 }
 
 async function act(id, status){
