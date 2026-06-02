@@ -113,6 +113,33 @@
   #bulkbar .bcount .n{font-family:var(--mono);color:var(--indigo2);margin-right:4px}
   #bulkbar .bactions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
   #bulkbar .mini{padding:8px 13px}
+  /* digest tab */
+  .digestgrid{display:grid;grid-template-columns:340px 1fr;gap:18px;margin-top:6px}
+  @media(max-width:880px){.digestgrid{grid-template-columns:1fr}}
+  .subscol{display:flex;flex-direction:column;gap:10px}
+  .subcontrols{display:flex;gap:8px;align-items:center}
+  .subcontrols input{flex:1;background:var(--panel2);border:1px solid var(--line2);color:#fff;border-radius:10px;padding:10px 13px;font-family:var(--grot);font-size:14px}
+  .sublist{background:var(--panel);border:1px solid var(--line);border-radius:13px;overflow:hidden;max-height:620px;overflow-y:auto}
+  .subrow{padding:13px 15px;border-bottom:1px solid var(--line);cursor:pointer;transition:.12s}
+  .subrow:last-child{border-bottom:none}
+  .subrow:hover{background:rgba(108,108,245,.06)}
+  .subrow.on{background:rgba(108,108,245,.14);border-left:3px solid var(--indigo);padding-left:12px}
+  .subrow .em{font-weight:700;font-size:13.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .subrow .meta{font-family:var(--mono);font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+  .subrow.unsub{opacity:.5}
+  .subrow .badge{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;padding:2px 6px;border-radius:5px;text-transform:uppercase;margin-left:5px}
+  .subrow .badge.unsub{background:var(--redSoft);color:var(--red)}
+  .previewpane{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:18px;min-height:620px}
+  .previewmeta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .previewmeta .lbl{font-family:var(--mono);font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em}
+  .previewmeta select{background:var(--panel2);border:1px solid var(--line2);color:var(--ink);border-radius:8px;padding:6px 10px;font-family:var(--grot);font-size:13px}
+  .subjectbox{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+  .subjectbox .l{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
+  .subjectbox .v{font-weight:700;color:var(--ink);font-size:14px;margin-top:3px;line-height:1.35}
+  .subjectbox .p{color:var(--muted);font-size:12.5px;margin-top:5px}
+  .iframewrap{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#0a0a14}
+  .iframewrap iframe{width:100%;height:780px;border:none;display:block}
+  .placeholder{padding:60px 30px;text-align:center;color:var(--muted);border:1px dashed var(--line2);border-radius:11px}
 </style>
 </head>
 <body>
@@ -155,6 +182,7 @@
         <button class="tab" data-t="archived" onclick="setTab('archived')">Archived</button>
         <button class="tab" data-t="all" onclick="setTab('all')">All</button>
         <button class="tab" data-t="analytics" onclick="setTab('analytics')">Analytics</button>
+        <button class="tab" data-t="digest" onclick="setTab('digest')">Digest</button>
       </div>
       <input class="search" id="search" placeholder="Search tools..." oninput="render()" />
     </div>
@@ -244,6 +272,10 @@ let RANGE = 30;
 let ANALYTICS = null;
 let SELECTED = new Set();
 let VISIBLE_IDS = [];
+let SUBS = [];
+let SUB_SELECTED_ID = null;
+let SUB_FILTER = "";
+let DIGEST_DAYS = 30;
 
 async function api(action, extra){
   const res = await fetch(FN_URL, {
@@ -283,7 +315,7 @@ function setTab(t){
   TAB=t;
   SELECTED.clear();
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on", b.dataset.t===t));
-  document.getElementById("search").style.display = (t==="analytics") ? "none" : "";
+  document.getElementById("search").style.display = (t==="analytics"||t==="digest") ? "none" : "";
   render();
 }
 function setRange(n){ RANGE=n; renderAnalytics(); }
@@ -292,6 +324,7 @@ function fmtDate(s){ if(!s) return ""; const d=new Date(s); return isNaN(d)?"":d
 
 function render(){
   if(TAB==="analytics"){ VISIBLE_IDS=[]; updateBulkBar(); renderAnalytics(); return; }
+  if(TAB==="digest"){ VISIBLE_IDS=[]; updateBulkBar(); renderDigest(); return; }
   const q = (document.getElementById("search").value||"").toLowerCase();
   let rows = TOOLS.filter(t => TAB==="all" ? true : t.status===TAB);
   if(q) rows = rows.filter(t => ((t.name||"")+" "+(t.category||"")+" "+(t.description||"")).toLowerCase().includes(q));
@@ -439,6 +472,99 @@ function drawAnalytics(){
       “Clicks per completion” = affiliate clicks ÷ assessment completions, your core conversion signal.</div>`;
 }
 
+/* ===== digest preview ===== */
+async function renderDigest(){
+  const host = document.getElementById("list");
+  host.innerHTML = `
+    <div class="digestgrid">
+      <div class="subcol">
+        <div class="subcontrols">
+          <input id="subFilter" type="text" placeholder="Filter by email…" value="${esc(SUB_FILTER||'')}" oninput="SUB_FILTER=this.value;rebuildSubList()" />
+          <button class="mini" onclick="loadSubs(true)">↻</button>
+        </div>
+        <div class="sublist" id="subList"><div class="placeholder" style="padding:30px">Loading subscribers…</div></div>
+      </div>
+      <div class="previewpane" id="previewPane">
+        <div class="placeholder">Pick a subscriber on the left to preview their next digest email.<br><br>Edge-function v5 generates this server-side from their stack and interests — same HTML the email sender will use when you wire one up.</div>
+      </div>
+    </div>`;
+  if(!SUBS.length) await loadSubs(false);
+  else rebuildSubList();
+}
+
+async function loadSubs(force){
+  if(!force && SUBS.length){ rebuildSubList(); return; }
+  try{
+    const list = document.getElementById("subList");
+    if(list) list.innerHTML = `<div class="placeholder" style="padding:30px">Loading subscribers…</div>`;
+    const j = await api("subscribers_list");
+    SUBS = j.subscribers || [];
+    rebuildSubList();
+  }catch(e){
+    const list = document.getElementById("subList");
+    if(list) list.innerHTML = `<div class="placeholder">Couldn't load: ${esc(e.message)}</div>`;
+  }
+}
+
+function rebuildSubList(){
+  const list = document.getElementById("subList");
+  if(!list) return;
+  const q = (SUB_FILTER||"").trim().toLowerCase();
+  const rows = SUBS.filter(s => !q || (s.email||"").toLowerCase().includes(q));
+  if(!rows.length){
+    list.innerHTML = `<div class="placeholder">${SUBS.length===0 ? "No subscribers yet. When visitors opt in on the results page, they'll show up here." : "No matches."}</div>`;
+    return;
+  }
+  list.innerHTML = rows.map(function(s){
+    const cls = "subrow" + (SUB_SELECTED_ID===s.id?" on":"") + (s.unsubscribed_at?" unsub":"");
+    const stackN = (s.stack||[]).length + (s.stack_other||[]).length;
+    const interN = (s.interests||[]).length;
+    const unsubB = s.unsubscribed_at ? '<span class="badge unsub">unsub</span>' : '';
+    return `<div class="${cls}" onclick="selectSub(${s.id})">
+      <div class="em">${esc(s.email||"")}${unsubB}</div>
+      <div class="meta">${stackN} TOOLS · ${interN} INTERESTS · ${fmtDate(s.created_at)}</div>
+    </div>`;
+  }).join("");
+}
+
+async function selectSub(id){
+  SUB_SELECTED_ID = id;
+  rebuildSubList();
+  const pane = document.getElementById("previewPane");
+  pane.innerHTML = `<div class="placeholder">Generating preview…</div>`;
+  const sub = SUBS.find(function(s){return s.id===id;});
+  if(!sub){ pane.innerHTML = `<div class="placeholder">Subscriber not found.</div>`; return; }
+  try{
+    const j = await api("digest_preview", { token: sub.token, days: DIGEST_DAYS });
+    drawPreview(j.payload, j.html, sub);
+  }catch(e){
+    pane.innerHTML = `<div class="placeholder">Couldn't generate preview: ${esc(e.message)}</div>`;
+  }
+}
+
+function drawPreview(payload, html, sub){
+  const pane = document.getElementById("previewPane");
+  const interests = (payload.interests||[]).join(", ");
+  const range = [7,30,60,90].map(d => `<option value="${d}" ${DIGEST_DAYS===d?'selected':''}>${d}d</option>`).join("");
+  pane.innerHTML = `
+    <div class="previewmeta">
+      <span class="lbl">Window:</span>
+      <select onchange="DIGEST_DAYS=Number(this.value);selectSub(${sub.id})">${range}</select>
+      <span class="lbl" style="margin-left:6px">For:</span>
+      <b style="font-size:13.5px">${esc(payload.email||"")}</b>
+      <span class="lbl" style="margin-left:6px">Interests:</span>
+      <span style="font-size:12.5px;color:var(--muted)">${esc(interests)||"none"}</span>
+    </div>
+    <div class="subjectbox">
+      <div class="l">Subject line</div>
+      <div class="v">${esc(payload.subject||"")}</div>
+      <div class="l" style="margin-top:10px">Preheader (inbox preview text)</div>
+      <div class="p">${esc(payload.preheader||"")}</div>
+    </div>
+    <div class="iframewrap"><iframe id="emailFrame"></iframe></div>`;
+  const f = document.getElementById("emailFrame");
+  f.srcdoc = html;
+}
 /* ===== add a tool ===== */
 const DOMAINS = [
   ["sales","Sales & revenue"],["marketing","Marketing & content"],["support","Customer support"],
