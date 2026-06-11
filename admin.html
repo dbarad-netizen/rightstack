@@ -206,8 +206,12 @@
       <div><label class="flabel">Starting price</label><input type="text" id="f_price" placeholder="e.g. $39/mo or Free" /></div>
     </div>
     <div class="ffull" style="margin-bottom:12px">
-      <label class="flabel">Description</label>
+      <label class="flabel">Description (1 line — shows on card)</label>
       <textarea id="f_desc" placeholder="One sentence on what it does and who it's for."></textarea>
+    </div>
+    <div class="ffull" style="margin-bottom:12px">
+      <label class="flabel">Evaluation notes — "Why people pick it" (2–4 sentences)</label>
+      <textarea id="f_long_desc" rows="3" placeholder="Used by the Details pane. Who picks this over alternatives? Common pitfalls? Honest evaluator voice."></textarea>
     </div>
     <div class="ffull" style="margin-bottom:12px">
       <label class="flabel">Use-cases (tags) — pick all that apply *</label>
@@ -585,7 +589,7 @@ function selectedChips(hostId){
 function openAddForm(){
   buildChips("f_tags", DOMAINS);
   buildChips("f_sizes", SIZES);
-  ["f_id","f_name","f_category","f_price","f_desc","f_affiliate","f_commission","f_url","f_site"]
+  ["f_id","f_name","f_category","f_price","f_desc","f_long_desc","f_affiliate","f_commission","f_url","f_site"]
     .forEach(function(id){ document.getElementById(id).value=""; });
   document.getElementById("f_tier").value="";
   document.getElementById("f_ease").value="";
@@ -605,6 +609,7 @@ async function submitAddTool(){
     name: v("f_name"),
     category: v("f_category"),
     description: v("f_desc"),
+    long_desc: v("f_long_desc"),
     tags: selectedChips("f_tags"),
     sizes: selectedChips("f_sizes"),
     price_tier: document.getElementById("f_tier").value,

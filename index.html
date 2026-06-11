@@ -243,8 +243,16 @@
   .actbtn.on{border-color:var(--greenSoft);color:var(--green)}
   .actbtn.try{background:#fff;color:#0b0c14;border-color:#fff;font-weight:700}
   .actbtn.try:hover{background:#e9eaf5}
-  .detailpane{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--panel2);color:#aeb3c9;font-size:13.5px;line-height:1.8}
+  .detailpane{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--panel2);color:#aeb3c9;font-size:13.5px;line-height:1.55}
   .detailpane b{color:#e7e9f5}
+  .detailpane h5{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--indigo2);text-transform:uppercase;margin:14px 0 5px;font-weight:700}
+  .detailpane h5:first-child{margin-top:0}
+  .detailpane p{margin:0;color:#cbcfe1;font-size:13.5px;line-height:1.55}
+  .detailpane .alts{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+  .detailpane .alt{display:flex;flex-direction:column;font-size:12.5px;padding:8px 12px;border:1px solid var(--line2);border-radius:9px;color:var(--ink);text-decoration:none;background:rgba(255,255,255,.03);font-weight:600;transition:.12s}
+  .detailpane .alt:hover{background:rgba(108,108,245,.08);border-color:var(--indigo)}
+  .detailpane .alt .acat{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;font-weight:500}
+  .detailpane .visitline{margin-top:16px;padding-top:13px;border-top:1px solid var(--line)}
   .src{color:var(--indigo2);text-decoration:none}
   .emptyrow{border:1px dashed var(--line2);border-radius:12px;padding:28px;text-align:center;color:var(--muted)}
   .cmpoverlay{position:fixed;inset:0;background:rgba(4,5,10,.72);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
@@ -488,6 +496,7 @@ async function loadCatalogFromSupabase(){
       console.log("[RightStack] Loaded "+rows.length+" tools from Supabase (server says: "+res.headers.get("content-range")+")");
       AI_TOOLS = rows.map(function(r){ return {
         id:r.id, name:r.name, category:r.category, tags:r.tags||[], desc:r.description||"",
+        longDesc:r.long_desc||"",
         sizes:r.sizes||[], priceTier:r.price_tier, hasFreePlan:!!r.has_free_plan, price:r.price||"",
         ease:r.ease||2, affiliate:r.affiliate||"", commission:r.commission||"",
         url:r.url||r.site||"#", site:r.site||r.url||"#", isNew:!!r.is_new }; });
@@ -846,9 +855,89 @@ function renderStackList(){
   if(cb) cb.innerHTML = compareSet.size ? `<button class="btn outline" style="padding:7px 14px" onclick="openCompare()">Compare ${compareSet.size} →</button>` : "";
 }
 
+/* ---- detail-pane helpers: turn raw tool fields into evaluator-voice content ---- */
+function sizeAudienceLabel(sizes){
+  if(!sizes || !sizes.length) return "Any size team";
+  const has = function(x){ return sizes.indexOf(x)!==-1; };
+  if(has("small") && has("mid") && has("large")) return "Solo operators through enterprise — broad fit";
+  if(has("small") && has("mid")) return "Solo operators, small businesses, and mid-market teams";
+  if(has("mid") && has("large")) return "Mid-market and enterprise — heavier procurement";
+  if(has("large")) return "Enterprise — built for scale and compliance";
+  if(has("mid")) return "Mid-market — growing companies past their startup phase";
+  if(has("small")) return "Solo operators and small teams — low overhead";
+  return sizes.join(", ");
+}
+function setupTimeLabel(ease){
+  if(ease === 1) return "Under an hour — no-code, self-serve onboarding";
+  if(ease === 2) return "A few days to a week — light configuration and integrations";
+  if(ease === 3) return "Multi-week — requires technical resources or vendor-led onboarding";
+  return "Variable";
+}
+function whereItShinesText(tags){
+  if(!tags || !tags.length) return "";
+  return tags.map(function(t){
+    return (typeof USE_CASE_DOMAINS!=="undefined" && USE_CASE_DOMAINS[t] && USE_CASE_DOMAINS[t].label) || t;
+  }).join(" · ");
+}
+function pricingLine(t){
+  const free = t.hasFreePlan ? "Free plan available" : (/free|trial/i.test(t.price||"") ? "Free trial only" : "Paid only");
+  const tierName = t.priceTier ? (t.priceTier.charAt(0).toUpperCase() + t.priceTier.slice(1)) : "—";
+  return free + " · " + tierName + " tier · From " + (t.price || "—");
+}
+function whyPickItAuto(t){
+  const bits = [];
+  if(t.hasFreePlan) bits.push("Free plan means you can validate fit before any commitment.");
+  if(t.ease===1) bits.push("Fast time-to-value — most teams are live and seeing results within hours.");
+  if(t.ease===3) bits.push("Built for technical buyers; the depth pays off when you put proper setup behind it.");
+  if(t.sizes && t.sizes.length===1 && t.sizes[0]==='large') bits.push("Designed for enterprise scale, procurement, and security review.");
+  if(t.sizes && t.sizes.length===1 && t.sizes[0]==='small') bits.push("Sized and priced for solo operators and lean teams.");
+  return bits.join(" ");
+}
+function findAlternatives(tool, ownedIds){
+  if(!tool.tags || !tool.tags.length) return [];
+  const ownedSet = new Set(ownedIds||[]);
+  const primary = tool.tags[0];
+  // Prefer tools in same primary tag + similar size + similar price tier, excluding owned + this one
+  const scored = AI_TOOLS.filter(function(t){
+    return t.id !== tool.id && !ownedSet.has(t.id) && t.tags && t.tags.indexOf(primary)!==-1;
+  }).map(function(t){
+    let sc = 0;
+    if(tool.sizes && t.sizes){
+      const overlap = (tool.sizes||[]).filter(function(s){return (t.sizes||[]).indexOf(s)!==-1;}).length;
+      sc += overlap * 2;
+    }
+    if(tool.priceTier && t.priceTier === tool.priceTier) sc += 2;
+    if(t.hasFreePlan) sc += 1;
+    return { tool:t, sc:sc };
+  }).sort(function(a,b){ return b.sc - a.sc; });
+  return scored.slice(0,2).map(function(x){return x.tool;});
+}
+function buildDetailPane(t, ownedIds){
+  const audience = sizeAudienceLabel(t.sizes);
+  const shines = whereItShinesText(t.tags);
+  const setup = setupTimeLabel(t.ease);
+  const pricing = pricingLine(t);
+  const longDesc = (t.longDesc||"").trim();
+  const why = longDesc || whyPickItAuto(t);
+  const alts = findAlternatives(t, ownedIds);
+  const altsHtml = alts.length
+    ? '<div class="alts">' + alts.map(function(a){
+        return `<a class="alt" href="${a.site||a.url||'#'}" target="_blank" rel="noopener"><span>${a.name}</span><span class="acat">${a.category||''}</span></a>`;
+      }).join('') + '</div>'
+    : '';
+  return `<div class="detailpane">
+    <h5>Best for</h5><p>${audience}</p>
+    ${shines ? `<h5>Where it shines</h5><p>${shines}</p>` : ''}
+    <h5>Setup time</h5><p>${setup}</p>
+    <h5>Pricing</h5><p>${pricing}</p>
+    ${why ? `<h5>Why people pick it</h5><p>${why}</p>` : ''}
+    ${alts.length ? `<h5>Alternatives to compare</h5>${altsHtml}` : ''}
+    <div class="visitline"><a class="src" href="${t.site||'#'}" target="_blank" rel="noopener">Visit ${t.name} site ↗</a></div>
+  </div>`;
+}
+
 function stackCard(s){
   const t=s.tool, mp=matchPct(s.score);
-  const noAff = /None/.test(t.affiliate);
   const entTag  = t.sizes.indexOf("large")!==-1 ? '<span class="sig ent">Enterprise</span>' : '';
   const freeTag = t.hasFreePlan ? '<span class="sig free">Free plan</span>' : '';
   const newTag  = (NEW_IDS.has(t.id) || t.isNew) ? '<span class="sig new">New</span>' : '';
@@ -858,12 +947,7 @@ function stackCard(s){
     .concat(s.reasons)
     .map(function(w){ return `<div class="whyrow">— ${w}</div>`; }).join("");
   const saved=savedStack.has(t.id), inCmp=compareSet.has(t.id), expanded=expandedSet.has(t.id);
-  const detail = expanded ? `<div class="detailpane">
-      <div><b>Starting price:</b> ${t.price}</div>
-      <div><b>Setup:</b> ${complexityLabel(t.ease)} &nbsp;·&nbsp; <b>Fits:</b> ${t.sizes.join(", ")}</div>
-      <div><b>Referral program:</b> ${t.affiliate}${noAff?'':' — '+t.commission}</div>
-      <div style="margin-top:6px"><a class="src" href="${t.site}" target="_blank" rel="noopener">Visit ${t.name} site ↗</a></div>
-    </div>` : "";
+  const detail = expanded ? buildDetailPane(t, answers.stack||[]) : "";
   return `<div class="scard">
     <div class="schead">
       <div class="avatar" style="background:${avColor(t.name)}">${initials(t.name).toUpperCase()}</div>
@@ -906,8 +990,7 @@ function openCompare(){
     ["Starting price", function(t){ return t.price; }],
     ["Free plan", function(t){ return t.hasFreePlan?"Yes":"No"; }],
     ["Setup", function(t){ return complexityLabel(t.ease); }],
-    ["Fits sizes", function(t){ return t.sizes.join(", "); }],
-    ["Referral program", function(t){ return t.affiliate; }]
+    ["Fits sizes", function(t){ return t.sizes.join(", "); }]
   ];
   let html = `<div class="cmpwrap"><div class="cmphead"><b>Compare ${tools.length} tools</b><button class="btn ghost" onclick="closeCompare()">✕ Close</button></div>
     <div class="cmpscroll"><table class="cmptable"><tr><th></th>${tools.map(function(t){return `<th>${t.name}</th>`;}).join("")}</tr>`;
