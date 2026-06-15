@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Stack — RightStack</title>
+<meta name="description" content="A free, private tool to catalog and manage your AI stack. No signup. Lives in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07070d; --panel:#101220; --panel2:#0d0e1a; --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+    --ink:#f4f5fb; --muted:#8b90a6; --dim:#5d6178; --indigo:#6c6cf5; --indigo2:#8f7bff;
+    --green:#35d6a4; --greenSoft:rgba(53,214,164,.12); --amber:#f5b042; --red:#ef5a5a;
+    --grot:"Space Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --mono:"Space Mono",ui-monospace,Menlo,monospace; --radius:16px;
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{font-family:var(--grot);color:var(--ink);background:
+    radial-gradient(900px 480px at 80% -10%,rgba(108,108,245,.16),transparent 60%),var(--bg);min-height:100vh}
+  .wrap{max-width:1080px;margin:0 auto;padding:30px 24px 80px}
+  header.bar{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+  .gem{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--indigo),var(--indigo2));display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .gem:after{content:"";width:15px;height:15px;border:2.6px solid #fff;transform:rotate(45deg);border-radius:3px}
+  .brand{font-weight:700;font-size:18px}
+  .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .btn{appearance:none;border:none;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;font-family:var(--grot);padding:10px 16px;text-decoration:none;display:inline-block}
+  .btn.line{background:rgba(255,255,255,.05);border:1px solid var(--line2);color:var(--ink)}
+  .btn.ghost{background:transparent;color:var(--muted)} .btn.ghost:hover{color:var(--ink)}
+  .btn.primary{background:linear-gradient(135deg,var(--indigo),var(--indigo2));color:#fff}
+  .tag{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+
+  .hero{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:30px 32px;margin-bottom:22px}
+  .hero h1{font-size:32px;letter-spacing:-.02em;margin:0 0 10px;font-weight:700}
+  .hero p{color:var(--muted);font-size:15.5px;line-height:1.55;margin:0;max-width:62ch}
+  .hero .pill{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--green);background:var(--greenSoft);padding:5px 10px;border-radius:6px;text-transform:uppercase;margin-bottom:14px;font-weight:700}
+
+  /* stats row */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+  @media(max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px 18px}
+  .stat .n{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--ink);line-height:1}
+  .stat .l{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;margin-top:6px;font-weight:600}
+
+  /* search-add */
+  .searchwrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-bottom:20px}
+  .searchwrap h3{margin:0 0 10px;font-size:16px;font-weight:700}
+  .searchwrap .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px;line-height:1.5}
+  .searchin{width:100%;background:var(--panel2);border:1.5px solid var(--line2);color:#fff;border-radius:12px;padding:13px 15px;font-family:var(--grot);font-size:15px;outline:none;transition:.14s}
+  .searchin:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(108,108,245,.18)}
+  .suggs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px;max-height:260px;overflow-y:auto;padding-right:4px}
+  @media(max-width:560px){.suggs{grid-template-columns:1fr}}
+  .sugg{text-align:left;border:1px solid var(--line2);background:rgba(255,255,255,.02);color:var(--ink);border-radius:10px;padding:10px 13px;cursor:pointer;font-family:var(--grot);transition:.12s}
+  .sugg:hover{border-color:var(--indigo);background:rgba(108,108,245,.08)}
+  .sugg .nm{font-weight:600;font-size:14px}
+  .sugg .ct{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+  .customrow{margin-top:14px;display:flex;gap:10px}
+  .customrow input{flex:1;background:var(--panel2);border:1.5px solid var(--line2);color:#fff;border-radius:10px;padding:11px 14px;font-family:var(--grot);font-size:14.5px;outline:none}
+  .customrow input:focus{border-color:var(--indigo)}
+  .customrow button{padding:11px 18px;background:rgba(255,255,255,.05);border:1px solid var(--line2);color:var(--ink);border-radius:10px;cursor:pointer;font-family:var(--grot);font-weight:600;font-size:14px}
+  .customrow button:hover{background:rgba(108,108,245,.1);border-color:var(--indigo)}
+
+  /* tools list */
+  .stacksec h2{margin:24px 0 4px;font-size:18px;font-weight:700}
+  .stacksec .ssub{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+  .empty{padding:50px 30px;text-align:center;color:var(--muted);border:1px dashed var(--line2);border-radius:13px;line-height:1.6}
+  .empty b{color:var(--ink)}
+
+  .toolcard{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:18px 22px;margin-bottom:12px}
+  .tcrow1{display:flex;align-items:flex-start;gap:14px}
+  .av{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;flex:0 0 auto}
+  .tcbody{flex:1;min-width:0}
+  .tcname{font-weight:700;font-size:16.5px;color:var(--ink)}
+  .tccat{font-family:var(--mono);font-size:10.5px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;margin-top:3px}
+  .tcacts{display:flex;gap:7px;flex-wrap:wrap}
+  .tcbtn{font-size:12px;padding:7px 12px;border:1px solid var(--line2);background:rgba(255,255,255,.04);color:var(--ink);border-radius:8px;cursor:pointer;font-family:var(--grot);font-weight:600;text-decoration:none}
+  .tcbtn:hover{background:rgba(108,108,245,.1);border-color:var(--indigo)}
+  .tcbtn.danger{color:var(--red);border-color:rgba(239,90,90,.3)}
+  .tcbtn.danger:hover{background:rgba(239,90,90,.1)}
+  .tcdesc{color:#aeb3c9;font-size:13.5px;line-height:1.55;margin:12px 0 0}
+  .tclong{color:#cbcfe1;font-size:13.5px;line-height:1.6;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);display:none}
+  .toolcard.expanded .tclong{display:block}
+  .tclongh{font-family:var(--mono);font-size:10.5px;color:var(--indigo2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;font-weight:700}
+  .pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .pp{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.06);color:#c3c7df}
+  .pp.free{background:var(--greenSoft);color:var(--green)}
+
+  .customcard{background:var(--panel);border:1px dashed var(--line2);border-radius:11px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+  .customcard .nm{font-weight:600;color:var(--ink);flex:1}
+  .customcard .badge{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+
+  /* footer / CTAs */
+  .ctarow{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-top:24px;display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
+  @media(max-width:680px){.ctarow{grid-template-columns:1fr}}
+  .ctarow h3{margin:0 0 6px;font-size:17px}
+  .ctarow p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.5}
+  .ctarow .btn{justify-self:start}
+
+  footer{margin-top:30px;color:var(--dim);font-size:12.5px;text-align:center;line-height:1.55}
+  footer a{color:var(--muted);text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="bar">
+  <span class="gem"></span>
+  <div><div class="brand">RightStack</div><div class="tag">My stack — private, no signup</div></div>
+  <div class="right">
+    <a class="btn ghost" href="/">← Home</a>
+    <a class="btn line" href="/#assessment" id="assessLink">Take the assessment</a>
+  </div>
+</header>
+
+<div class="hero">
+  <span class="pill">Free · private · stays in your browser</span>
+  <h1>Your AI stack — in one place.</h1>
+  <p>Track every AI tool you're paying for or thinking about. Nothing here leaves your browser unless you choose to share it. Use this as your living catalog: see what you have, what costs roll up where, and what AI features are quietly waiting inside the tools you already own.</p>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="n" id="sTools">0</div><div class="l">Tools tracked</div></div>
+  <div class="stat"><div class="n" id="sFree">0</div><div class="l">With free plan</div></div>
+  <div class="stat"><div class="n" id="sCategories">0</div><div class="l">Categories covered</div></div>
+  <div class="stat"><div class="n" id="sCustom">0</div><div class="l">Custom additions</div></div>
+</div>
+
+<div class="searchwrap">
+  <h3>Add a tool</h3>
+  <p class="sub">Search across 470 AI tools we track. Type a name or category. Don't see it? Add it manually below.</p>
+  <input class="searchin" id="searchIn" type="text" autocomplete="off" placeholder="Search — e.g. HubSpot, Notion, Klaviyo…" />
+  <div class="suggs" id="suggs"></div>
+  <div class="customrow">
+    <input id="customIn" type="text" placeholder="Add a tool we don't have yet (any name)" onkeydown="if(event.key==='Enter')addCustom()" />
+    <button onclick="addCustom()">+ Add</button>
+  </div>
+</div>
+
+<div class="stacksec">
+  <h2>Your stack</h2>
+  <p class="ssub">Click any tool to see why people pick it — and what it's strongest at.</p>
+  <div id="stackList"></div>
+</div>
+
+<div class="ctarow">
+  <div>
+    <h3>Want this updated automatically?</h3>
+    <p>Take our 1-minute assessment and we'll send you a monthly digest of new tools that fit your stack, plus a live dashboard you can share.</p>
+  </div>
+  <a class="btn primary" href="/#assessment">Take the assessment →</a>
+</div>
+
+<footer>
+  <a href="/">RightStack</a> · This page lives entirely in your browser. Clear cookies or use incognito and your stack resets. To save across devices, take the assessment and opt in for the live dashboard.
+</footer>
+
+</div>
+
+<script src="catalog.js"></script>
+<script>
+const SUPABASE_URL = "https://xazmwpozsmbrqoulizyn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_nxpCXX6gQ8ZOWjFGdgFi3A_hcfOxoSY";
+const STORAGE_KEY = "rs_my_stack_v1";
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function avColor(name){
+  const palette = ["#6c6cf5","#8f7bff","#35d6a4","#f5b042","#ef5a5a","#5ec9ef","#bcb0ff"];
+  let h = 0; for(let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i))|0;
+  return palette[Math.abs(h)%palette.length];
+}
+function initials(name){
+  return name.split(/\s+/).map(w => w[0]||"").slice(0,2).join("");
+}
+
+let STATE = { tools:[], custom:[], expanded:{} };
+let CATALOG = (typeof AI_TOOLS !== "undefined" ? AI_TOOLS : []);
+let CATALOG_BY_ID = {};
+function rebuildIndex(){
+  CATALOG_BY_ID = {};
+  CATALOG.forEach(t => { CATALOG_BY_ID[t.id] = t; });
+}
+rebuildIndex();
+
+// Pull live catalog (more current than the static catalog.js bundle)
+(async function(){
+  try{
+    const res = await fetch(SUPABASE_URL+"/rest/v1/tools?select=*&status=eq.published&limit=10000",{
+      headers:{ apikey:SUPABASE_KEY, Authorization:"Bearer "+SUPABASE_KEY }
+    });
+    if(!res.ok) return;
+    const rows = await res.json();
+    if(Array.isArray(rows) && rows.length){
+      CATALOG = rows.map(r => ({
+        id:r.id, name:r.name, category:r.category, tags:r.tags||[], desc:r.description||"",
+        longDesc:r.long_desc||"", sizes:r.sizes||[],
+        priceTier:r.price_tier, hasFreePlan:!!r.has_free_plan, price:r.price||"",
+        ease:r.ease||2,
+        url:r.url||r.site||"#", site:r.site||r.url||"#", isNew:!!r.is_new
+      }));
+      rebuildIndex();
+      renderAll();
+    }
+  }catch(e){ /* keep catalog.js fallback */ }
+})();
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const obj = JSON.parse(raw);
+      STATE.tools = Array.isArray(obj.tools) ? obj.tools : [];
+      STATE.custom = Array.isArray(obj.custom) ? obj.custom : [];
+      STATE.expanded = (obj.expanded && typeof obj.expanded === "object") ? obj.expanded : {};
+    }
+  }catch(e){}
+}
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE)); }catch(e){}
+}
+
+function renderStats(){
+  const tools = STATE.tools.map(id => CATALOG_BY_ID[id]).filter(Boolean);
+  document.getElementById("sTools").textContent = STATE.tools.length + STATE.custom.length;
+  document.getElementById("sFree").textContent = tools.filter(t => t.hasFreePlan).length;
+  const cats = new Set();
+  tools.forEach(t => (t.tags||[]).forEach(g => cats.add(g)));
+  document.getElementById("sCategories").textContent = cats.size;
+  document.getElementById("sCustom").textContent = STATE.custom.length;
+}
+
+function renderStack(){
+  const host = document.getElementById("stackList");
+  const tools = STATE.tools.map(id => CATALOG_BY_ID[id]).filter(Boolean);
+  if(!tools.length && !STATE.custom.length){
+    host.innerHTML = '<div class="empty"><b>Empty for now.</b><br>Add a tool above to start your stack.<br>This page stays private to your browser — nothing is uploaded.</div>';
+    return;
+  }
+  const html = tools.map(toolRow).join("") + STATE.custom.map(customRow).join("");
+  host.innerHTML = html;
+}
+
+function toolRow(t){
+  const ex = !!STATE.expanded[t.id];
+  const tryUrl = t.site || t.url || "#";
+  const freePill = t.hasFreePlan ? '<span class="pp free">Free plan</span>' : '';
+  const pricePill = t.price ? '<span class="pp">From '+esc(t.price)+'</span>' : '';
+  const catPill = (t.tags||[]).slice(0,2).map(g => '<span class="pp">'+esc(g)+'</span>').join("");
+  const longHtml = t.longDesc
+    ? '<div class="tclong"><div class="tclongh">Why people pick it</div>'+esc(t.longDesc)+'</div>'
+    : '<div class="tclong"><div class="tclongh">Evaluator notes</div>(none yet for this tool)</div>';
+  return '<div class="toolcard'+(ex?' expanded':'')+'" id="tc-'+esc(t.id)+'">'
+    +'<div class="tcrow1">'
+    +'<div class="av" style="background:'+avColor(t.name)+'">'+esc(initials(t.name).toUpperCase())+'</div>'
+    +'<div class="tcbody">'
+    +'<div class="tcname">'+esc(t.name)+'</div>'
+    +'<div class="tccat">'+esc(t.category||"")+'</div>'
+    +'<div class="pills">'+freePill+pricePill+catPill+'</div>'
+    +'<div class="tcdesc">'+esc(t.desc||"")+'</div>'
+    +'</div>'
+    +'<div class="tcacts">'
+    +'<button class="tcbtn" onclick="toggle(\''+esc(t.id)+'\')">'+(ex?'Hide':'Why')+'</button>'
+    +'<a class="tcbtn" href="'+esc(tryUrl)+'" target="_blank" rel="noopener">Visit ↗</a>'
+    +'<button class="tcbtn danger" onclick="removeTool(\''+esc(t.id)+'\')">Remove</button>'
+    +'</div></div>'
+    +longHtml
+    +'</div>';
+}
+
+function customRow(name, idx){
+  // idx is index in STATE.custom
+  return '<div class="customcard">'
+    +'<div class="nm">'+esc(name)+'</div>'
+    +'<span class="badge">Custom</span>'
+    +'<button class="tcbtn danger" onclick="removeCustomByName(\''+esc(name.replace(/\\/g,"\\\\").replace(/\x27/g,"\\\x27"))+'\')">Remove</button>'
+    +'</div>';
+}
+
+function renderSuggs(query){
+  const host = document.getElementById("suggs");
+  const q = (query||"").trim().toLowerCase();
+  const owned = new Set(STATE.tools);
+  let list;
+  if(q){
+    list = CATALOG.filter(t => !owned.has(t.id))
+      .filter(t => (t.name+" "+(t.category||"")).toLowerCase().includes(q))
+      .slice(0, 12);
+  } else {
+    // popular first when query empty
+    const POPULAR = ["chatgpt","claude","gemini","notion","slack","hubspot","salesforce","canva","figma","zapier","github","gmail","gdocs"];
+    const popSet = new Set(POPULAR);
+    const pop = CATALOG.filter(t => popSet.has(t.id) && !owned.has(t.id));
+    const rest = CATALOG.filter(t => !popSet.has(t.id) && !owned.has(t.id))
+      .sort((a,b) => (b.tags||[]).length - (a.tags||[]).length);
+    list = pop.concat(rest).slice(0, 12);
+  }
+  host.innerHTML = list.length
+    ? list.map(t => '<button class="sugg" onclick="addTool(\''+esc(t.id)+'\')"><div class="nm">'+esc(t.name)+'</div><div class="ct">'+esc(t.category||"")+'</div></button>').join("")
+    : (q ? '<div style="grid-column:1/-1;color:var(--muted);font-size:13.5px;padding:8px 0">No matches in our catalog. Use "Add a tool we don\'t have yet" below.</div>' : '');
+}
+
+function addTool(id){
+  if(STATE.tools.indexOf(id) === -1) STATE.tools.unshift(id);
+  save();
+  renderAll();
+  // clear search after add
+  const el = document.getElementById("searchIn");
+  if(el) el.value = "";
+}
+function removeTool(id){
+  STATE.tools = STATE.tools.filter(x => x !== id);
+  delete STATE.expanded[id];
+  save();
+  renderAll();
+}
+function addCustom(){
+  const el = document.getElementById("customIn");
+  const v = (el.value||"").trim();
+  if(!v) return;
+  const dup = STATE.custom.some(c => c.toLowerCase() === v.toLowerCase());
+  if(!dup) STATE.custom.unshift(v);
+  el.value = "";
+  save();
+  renderAll();
+}
+function removeCustomByName(name){
+  STATE.custom = STATE.custom.filter(n => n !== name);
+  save();
+  renderAll();
+}
+function toggle(id){
+  STATE.expanded[id] = !STATE.expanded[id];
+  save();
+  renderStack();
+}
+
+function renderAll(){
+  renderStats();
+  renderStack();
+  renderSuggs(document.getElementById("searchIn")?.value || "");
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  load();
+  renderAll();
+  document.getElementById("searchIn").addEventListener("input", e => renderSuggs(e.target.value));
+});
+</script>
+</body>
+</html>
