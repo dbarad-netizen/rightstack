@@ -280,14 +280,34 @@
   .bigmatch.strong span{color:rgba(53,214,164,.7)}
   .bigmatch.good{background:rgba(108,108,245,.13);color:var(--indigo2)}
   .bigmatch.good span{color:rgba(143,123,255,.7)}
-  .bigmatch.look{background:rgba(245,158,11,.12);color:var(--amber)}
-  .bigmatch.look span{color:rgba(245,158,11,.7)}
-  .bigmatch.niche{background:rgba(255,255,255,.06);color:var(--muted)}
-  .bigmatch.niche span{color:var(--dim)}
+  .bigmatch.optional{background:rgba(245,158,11,.12);color:var(--amber)}
+  .bigmatch.optional span{color:rgba(245,158,11,.7)}
+  .bigmatch.notfit{background:rgba(255,255,255,.06);color:var(--muted)}
+  .bigmatch.notfit span{color:var(--dim)}
+  /* fit-tier tabs */
+  .fittabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:14px;padding-bottom:0}
+  .fittab{padding:11px 16px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--grot);font-weight:600;font-size:14px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.12s;display:flex;align-items:center;gap:8px}
+  .fittab:hover{color:var(--ink)}
+  .fittab.on{color:var(--ink);border-bottom-color:var(--indigo)}
+  .fittab.on.t-strong{border-bottom-color:var(--green)}
+  .fittab.on.t-good{border-bottom-color:var(--indigo2)}
+  .fittab.on.t-optional{border-bottom-color:var(--amber)}
+  .fittab.on.t-notfit{border-bottom-color:var(--muted)}
+  .fittab .ct{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.07);color:var(--dim);padding:2px 7px;border-radius:6px;font-weight:700}
+  .fittab.on .ct{background:rgba(108,108,245,.16);color:var(--ink)}
+  .fittab.on.t-strong .ct{background:var(--greenSoft);color:var(--green)}
+  .fittab.on.t-good .ct{background:rgba(108,108,245,.16);color:var(--indigo2)}
+  .fittab.on.t-optional .ct{background:rgba(245,158,11,.14);color:var(--amber)}
+  .fittab.on.t-notfit .ct{background:rgba(255,255,255,.1);color:var(--muted)}
+  .fittab.empty{opacity:.45;cursor:default}
+  .fittab.empty:hover{color:var(--muted)}
+  .tierhint{font-size:12.5px;color:var(--dim);margin:8px 2px 14px;line-height:1.5;font-style:italic}
   .sdesc{color:#aeb3c9;font-size:14.5px;line-height:1.5;margin:14px 0}
   .whybox{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:rgba(108,108,245,.05)}
   .whyh{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--indigo2);text-transform:uppercase;margin-bottom:9px}
   .whyrow{color:#c7cbe0;font-size:13.5px;line-height:1.65}
+  .whyrow.whycon{color:var(--amber);opacity:.92}
+  .whyrow.whycon{padding-top:2px}
   .sigs{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
   .sig{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line2);color:#aab0c8;border-radius:7px;padding:5px 10px}
   .sig.ent{border-color:var(--greenSoft);color:var(--green)}
@@ -1157,16 +1177,19 @@ function prioritiesRecapHtml(){
 /* ---- Stage II + III: priority roadmap + filterable matched stack ---- */
 function matchPct(score){ return Math.max(55, Math.min(99, Math.round(score/46*100))); }
 function complexityKey(ease){ return ease===1?"easy":ease===2?"moderate":"advanced"; }
-/* Categorical fit labels — clearer than "92% MATCH" for non-technical users.
-   The numeric score still drives ranking; this is presentation only. */
+/* Categorical fit labels — Ed's phrasing. The numeric score drives ranking;
+   we never expose the percentage. Four tiers, used both as the badge on each
+   card and as the tab navigation above the list. */
 function fitLabel(pct){
-  if(pct >= 90) return { text:"Strong fit",   cls:"strong" };
-  if(pct >= 80) return { text:"Good fit",     cls:"good"   };
-  if(pct >= 70) return { text:"Worth a look", cls:"look"   };
-  return                { text:"Niche fit",   cls:"niche"  };
+  if(pct >= 90) return { text:"Strong fit", cls:"strong",  tier:"strong" };
+  if(pct >= 80) return { text:"Good fit",   cls:"good",    tier:"good"   };
+  if(pct >= 70) return { text:"Optional",   cls:"optional",tier:"optional" };
+  return                { text:"Not a fit", cls:"notfit",  tier:"notfit" };
 }
+const FIT_TIERS = ["strong","good","optional","notfit"];
+const FIT_TIER_LABELS = { strong:"Strong fit", good:"Good fit", optional:"Optional", notfit:"Not a fit" };
 
-let fSearch="", fCat="all", fComplex="all";
+let fSearch="", fCat="all", fComplex="all", fTier=null; // fTier null = auto-pick highest non-empty
 const compareSet = new Set();
 const expandedSet = new Set();
 
@@ -1271,31 +1294,60 @@ function renderStackList(){
   const stack = buildMatchedStack(answers, AI_TOOLS);
   const ownedIds = new Set(answers.stack||[]);
   const q = fSearch.trim().toLowerCase();
+  // Filter out owned + apply search + category + complexity filters
   const filtered = stack.filter(function(s){
-    if(ownedIds.has(s.tool.id)) return false;   // never recommend something they told us they already have
+    if(ownedIds.has(s.tool.id)) return false;
     if(q && (s.tool.name+" "+s.tool.desc+" "+s.tool.category).toLowerCase().indexOf(q)===-1) return false;
     if(fCat!=="all" && s.coveredIds.indexOf(fCat)===-1) return false;
     if(fComplex!=="all" && complexityKey(s.tool.ease)!==fComplex) return false;
     return true;
   });
-  // Cap at top 10 — too many results is "useless lists" territory per user feedback
-  const TOP_N = 10;
-  const top = filtered.slice(0, TOP_N);
+
+  // Group filtered results by fit tier
+  const byTier = { strong:[], good:[], optional:[], notfit:[] };
+  filtered.forEach(function(s){
+    const tier = fitLabel(matchPct(s.score)).tier;
+    byTier[tier].push(s);
+  });
+  const counts = { strong:byTier.strong.length, good:byTier.good.length,
+                   optional:byTier.optional.length, notfit:byTier.notfit.length };
+
+  // If no tier explicitly chosen yet, default to the highest non-empty tier
+  if(!fTier || counts[fTier] === 0){
+    fTier = FIT_TIERS.find(function(t){ return counts[t] > 0; }) || "strong";
+  }
 
   const mc=document.getElementById("matchCount");
-  if(mc){
-    if(filtered.length > TOP_N){
-      mc.textContent = "TOP "+TOP_N+" OF "+filtered.length+" MATCHES";
-    } else {
-      mc.textContent = filtered.length+" MATCH"+(filtered.length===1?"":"ES");
-    }
-  }
+  if(mc) mc.textContent = filtered.length+" MATCH"+(filtered.length===1?"":"ES")+" ACROSS YOUR PRIORITIES";
+
+  // Build tab nav
+  const tabsHtml = FIT_TIERS.map(function(t){
+    const isOn = (t === fTier);
+    const empty = counts[t] === 0;
+    const cls = "fittab t-"+t + (isOn?" on":"") + (empty?" empty":"");
+    const click = empty ? "" : `onclick="fTier='${t}';renderStackList()"`;
+    return `<button class="${cls}" ${click}>${FIT_TIER_LABELS[t]} <span class="ct">${counts[t]}</span></button>`;
+  }).join("");
+
+  // Friendly hint that interprets the active tier
+  const hints = {
+    strong: "Tools that nail your size, budget, setup-readiness, and use-cases — likely worth evaluating first.",
+    good:   "Strong matches with one mild caveat — pricing slightly above budget, or a heavier setup than you wanted, etc.",
+    optional: "Useful for some of what you do, but with real tradeoffs against your stated profile. Worth a skim, not a deep dive.",
+    notfit: "Listed for transparency. These touch one of your priorities but miss on size, budget, or complexity. Probably skip."
+  };
+
+  const visible = byTier[fTier];
+  const cardsHtml = visible.length
+    ? visible.map(stackCard).join("")
+    : `<div class="emptyrow">Nothing in this tier with your current filters.</div>`;
 
   const list=document.getElementById("stackList");
   if(list){
-    list.innerHTML = top.length
-      ? top.map(stackCard).join("")
-      : `<div class="emptyrow">No tools match these filters. Try widening them.</div>`;
+    list.innerHTML =
+      `<div class="fittabs">${tabsHtml}</div>` +
+      `<div class="tierhint">${hints[fTier]||""}</div>` +
+      cardsHtml;
   }
   const cb=document.getElementById("compareBar");
   if(cb) cb.innerHTML = compareSet.size ? `<button class="btn outline" style="padding:7px 14px" onclick="openCompare()">Compare ${compareSet.size} →</button>` : "";
@@ -1382,16 +1434,52 @@ function buildDetailPane(t, ownedIds){
   </div>`;
 }
 
+/* Surfaces the *negative* fit signals so "Not a fit" and "Optional" tiers
+   show the user concrete reasons, not just the label. Mirror of scoreToolFit. */
+function deriveConcerns(t, answers){
+  const out = [];
+  const budget = answers.budget || "";
+  const size = (answers.size === "solo") ? "small" : (answers.size || "");
+  const tech = answers.techReadiness || "";
+  // Budget signals
+  if(budget === "free" && !t.hasFreePlan){
+    out.push("No free plan — paid only" + (t.price ? " (from "+t.price+")" : ""));
+  } else if(["low","mid","high"].indexOf(budget) !== -1){
+    const tierOrder = {free:0, low:1, mid:2, high:3};
+    const diff = (tierOrder[t.priceTier]||0) - tierOrder[budget];
+    if(diff >= 2) out.push("Priced well above your budget ("+t.price+")");
+    else if(diff === 1) out.push("Slightly above your stated budget");
+  }
+  // Size signals
+  if(size && t.sizes && t.sizes.indexOf(size) === -1){
+    if(t.sizes.length === 1 && t.sizes[0] === "large") out.push("Built for enterprise scale — likely heavy for your team");
+    else if(t.sizes.length === 1 && t.sizes[0] === "small") out.push("Sized for solo/small teams — may feel thin at your scale");
+    else out.push("Not sized for your team profile");
+  }
+  // Setup signals
+  if(tech === "low" && t.ease === 3){
+    out.push("Requires technical setup — you said you wanted no-code");
+  } else if(tech === "med" && t.ease === 3){
+    out.push("Advanced setup — needs an engineer for proper rollout");
+  }
+  return out;
+}
+
 function stackCard(s){
   const t=s.tool, mp=matchPct(s.score), fit=fitLabel(mp);
   const entTag  = t.sizes.indexOf("large")!==-1 ? '<span class="sig ent">Enterprise</span>' : '';
   const freeTag = t.hasFreePlan ? '<span class="sig free">Free plan</span>' : '';
   const newTag  = (NEW_IDS.has(t.id) || t.isNew) ? '<span class="sig new">New</span>' : '';
   const sigs = `${newTag}<span class="sig">${complexityLabel(t.ease)}</span>${entTag}${freeTag}`;
-  const why = []
+  // Positive signals — what makes this a fit
+  const positives = []
     .concat(s.coveredLabels.length ? ["Covers "+s.coveredLabels.length+" of your priority use case"+(s.coveredLabels.length>1?"s":"")+" ("+s.coveredLabels.join(", ")+")"] : [])
-    .concat(s.reasons)
-    .map(function(w){ return `<div class="whyrow">— ${w}</div>`; }).join("");
+    .concat(s.reasons);
+  // Concerns — what's working against the fit
+  const concerns = deriveConcerns(t, answers);
+  const posHtml = positives.map(function(w){ return `<div class="whyrow">— ${esc(w)}</div>`; }).join("");
+  const conHtml = concerns.map(function(w){ return `<div class="whyrow whycon">— ${esc(w)}</div>`; }).join("");
+  const why = posHtml + conHtml;
   const saved=savedStack.has(t.id), inCmp=compareSet.has(t.id), expanded=expandedSet.has(t.id);
   const detail = expanded ? buildDetailPane(t, answers.stack||[]) : "";
   return `<div class="scard">
