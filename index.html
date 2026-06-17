@@ -185,6 +185,25 @@
   .priorsbd{color:var(--muted);font-size:13.5px;margin-top:8px;line-height:1.55}
   .priorsbd i{color:#dde0ee}
   .ownedcallout{margin-top:20px;padding:14px 16px;border:1px solid rgba(108,108,245,.3);background:rgba(108,108,245,.06);border-radius:12px}
+  /* save-stack panel — sits prominently above the matched-stack list */
+  .savestack{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center;
+    background:linear-gradient(135deg,rgba(108,108,245,.13),rgba(143,123,255,.06));
+    border:1px solid rgba(108,108,245,.35);border-radius:16px;padding:22px 24px;margin:18px 0 6px;box-shadow:0 0 0 1px rgba(108,108,245,.08)}
+  @media(max-width:680px){.savestack{grid-template-columns:1fr}}
+  .savestack .ssbody h3{margin:0 0 6px;font-size:19px;color:#fff;font-weight:700;letter-spacing:-.01em}
+  .savestack .ssbody p{margin:0;color:#c7cbe0;font-size:14px;line-height:1.55}
+  .savestack .sserror{margin-top:10px;color:var(--amber);background:var(--amberSoft);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:8px 12px;font-size:13px}
+  .savestack form.ssform{display:flex;flex-direction:column;gap:8px;min-width:240px}
+  .savestack form.ssform input{background:rgba(255,255,255,.06);border:1px solid var(--line2);color:#fff;border-radius:10px;padding:12px 14px;font-size:14.5px;font-family:var(--grot);outline:none;transition:.12s}
+  .savestack form.ssform input:focus{border-color:var(--indigo);background:rgba(255,255,255,.09)}
+  .savestack form.ssform button{padding:11px 16px;font-size:14px;white-space:nowrap}
+  .savestack.sent{grid-template-columns:auto 1fr;background:rgba(53,214,164,.07);border-color:rgba(53,214,164,.4)}
+  .savestack.sent .ssicon{width:46px;height:46px;border-radius:11px;background:var(--greenSoft);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700}
+  .savestack.sent .ssbody h3{color:var(--green)}
+  .savestack.saved{grid-template-columns:auto 1fr auto;background:rgba(53,214,164,.07);border-color:rgba(53,214,164,.4)}
+  .savestack.saved .ssicon{width:46px;height:46px;border-radius:11px;background:var(--greenSoft);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700}
+  .savestack.saved .ssbody h3{color:var(--green)}
+  @media(max-width:680px){.savestack.sent,.savestack.saved{grid-template-columns:1fr}}
   .ownedh{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--indigo2);text-transform:uppercase;margin-bottom:9px}
   .ownedchips{display:flex;flex-wrap:wrap;gap:6px}
   .ownedchip{font-family:var(--grot);font-size:12.5px;padding:5px 10px;border-radius:99px;background:rgba(108,108,245,.16);color:#cdc9ff;font-weight:500}
@@ -439,6 +458,7 @@
   <div id="card"></div>
 </div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="catalog.js"></script>
 <script src="scoring.js"></script>
 <script>
@@ -456,6 +476,79 @@ const NEW_IDS = new Set(["windsurf","lovable","clay","regie","gumloop","lindy","
    These are PUBLIC values (safe in the browser); your data is protected by row-level security. */
 const SUPABASE_URL = "https://mofrmrhjecsshdrkhvhq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_escMY33Wj0O5ZcHi-9vWtA_RC6vQV8B";
+
+/* ===== Supabase Auth (magic-link save-stack) =====
+   Session state drives the "Save your stack" panel and persistence across visits. */
+const SUPA = (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession:true, detectSessionInUrl:true, storage: window.localStorage }
+}) : null);
+let AUTH_USER = null;   // current logged-in user (email + id), null when anon
+
+async function refreshAuthUser(){
+  if(!SUPA) return null;
+  try{
+    const { data: { session } } = await SUPA.auth.getSession();
+    AUTH_USER = session ? { id: session.user.id, email: session.user.email } : null;
+    return AUTH_USER;
+  }catch(e){ console.warn("[RightStack] auth check failed:", e); return null; }
+}
+
+/* Magic-link send: kicks off the email loop. We tuck the in-progress assessment
+   answers into localStorage so we can persist the stack the moment they return. */
+async function sendStackMagicLink(email){
+  if(!SUPA) throw new Error("Auth not available");
+  // Snapshot the current answers + saved tools so we can save them on callback
+  try {
+    localStorage.setItem("rs_pending_save", JSON.stringify({
+      answers: answers,
+      savedTools: Array.from(savedStack||[]),
+      at: Date.now()
+    }));
+  } catch(e){ /* best effort */ }
+  const { error } = await SUPA.auth.signInWithOtp({
+    email: email,
+    options: { emailRedirectTo: location.origin + location.pathname + "?save=1" }
+  });
+  if(error) throw error;
+}
+
+/* On any page load: if we just came back from a magic link AND we have a
+   pending save tucked into localStorage, push the stack to subscribers. */
+async function maybePersistPendingSave(){
+  if(!SUPA) return null;
+  const params = new URLSearchParams(location.search);
+  if(params.get("save") !== "1") return null;
+  await refreshAuthUser();
+  if(!AUTH_USER) return null;
+  let pending = null;
+  try { pending = JSON.parse(localStorage.getItem("rs_pending_save") || "null"); } catch(e){}
+  if(!pending || !pending.answers) return null;
+
+  const pa = pending.answers;
+  const interests = (typeof interestsFromAnswers === "function") ? interestsFromAnswers(pa) : [];
+  try{
+    const res = await fetch(SUPABASE_URL + "/rest/v1/rpc/subscriber_upsert", {
+      method:"POST",
+      headers:{ "apikey":SUPABASE_KEY, "Authorization":"Bearer "+SUPABASE_KEY, "Content-Type":"application/json" },
+      body: JSON.stringify({
+        p_email: AUTH_USER.email,
+        p_stack: pa.stack||[], p_stack_other: pa.stackOther||[],
+        p_goals: pa.goals||[], p_teams: pa.teams||[],
+        p_size: pa.size||null, p_industry: pa.industry||null, p_budget: pa.budget||null,
+        p_interests: interests, p_source: 'save-stack',
+        p_business_desc: (pa.businessDesc||"").trim() || null
+      })
+    });
+    if(res.ok){
+      const j = await res.json();
+      localStorage.removeItem("rs_pending_save");
+      // Clean the ?save=1 from the URL
+      history.replaceState({}, "", location.pathname);
+      return j;
+    }
+  }catch(e){ console.warn("[RightStack] persist on callback failed:", e); }
+  return null;
+}
 
 /* ---- anonymous usage analytics (fire-and-forget) ----
    Records which tools get clicked, saved, and compared, plus assessment
@@ -951,6 +1044,72 @@ function prev(){
   if(stepIndex>0){ stepIndex--; render(); }
 }
 
+/* ===== Save-stack panel (shown at top of results) =====
+   Three states: anonymous (prompt for email), check-email (after send),
+   and saved (signed-in, persisted). The state is tracked in SAVE_STATE. */
+let SAVE_STATE = "anon"; // 'anon' | 'sent' | 'saved' | 'error'
+let SAVE_ERROR = "";
+
+function saveStackPanelHtml(){
+  if(SAVE_STATE === "saved" || (AUTH_USER && SAVE_STATE!=="error")){
+    return `<div class="savestack saved">
+      <div class="ssicon">✓</div>
+      <div class="ssbody">
+        <h3>Stack saved.</h3>
+        <p>Bookmark this URL or return any time from a magic link in your inbox. Signed in as <b>${esc(AUTH_USER ? AUTH_USER.email : "you")}</b>.</p>
+      </div>
+      <a class="btn primary lg" href="/stack.html">Open my live stack →</a>
+    </div>`;
+  }
+  if(SAVE_STATE === "sent"){
+    return `<div class="savestack sent">
+      <div class="ssicon">✉</div>
+      <div class="ssbody">
+        <h3>Check your inbox.</h3>
+        <p>We sent a magic link to <b>${esc(PENDING_EMAIL||"your email")}</b>. Click it from any device and your stack lands in your live dashboard, ready when you come back.</p>
+      </div>
+    </div>`;
+  }
+  // default = anonymous prompt
+  return `<div class="savestack">
+    <div class="ssbody">
+      <h3>Save your stack — get a live dashboard you can return to.</h3>
+      <p>We'll email you a one-click sign-in link. Your stack lives at a personal URL that stays current as the market moves. No password, no spam.</p>
+      ${SAVE_ERROR ? `<div class="sserror">${esc(SAVE_ERROR)}</div>` : ''}
+    </div>
+    <form class="ssform" onsubmit="return submitSaveStack(event)">
+      <input type="email" id="saveStackEmail" placeholder="you@company.com" required autocomplete="email" />
+      <button class="btn primary" type="submit" id="saveStackBtn">Send magic link</button>
+    </form>
+  </div>`;
+}
+
+let PENDING_EMAIL = "";
+async function submitSaveStack(e){
+  e.preventDefault();
+  const input = document.getElementById("saveStackEmail");
+  const btn   = document.getElementById("saveStackBtn");
+  const email = (input.value||"").trim();
+  if(!email) return false;
+  if(!SUPA){
+    SAVE_STATE = "error";
+    SAVE_ERROR = "Sign-in isn't available right now. Please try again in a moment.";
+    render(); return false;
+  }
+  btn.disabled = true; btn.textContent = "Sending…";
+  PENDING_EMAIL = email;
+  try{
+    await sendStackMagicLink(email);
+    SAVE_STATE = "sent"; SAVE_ERROR = "";
+  }catch(err){
+    SAVE_STATE = "error";
+    SAVE_ERROR = (err && err.message) ? err.message : "Couldn't send the link. Check the email and try again.";
+  }
+  // re-render results to show new state of the panel
+  renderResults();
+  return false;
+}
+
 /* Compose a human-readable recap of what the user told us — addresses the
    "Why it fits? Never told it my priorities" feedback. Writes back so the
    user sees their own inputs reflected in the framing of the results. */
@@ -1060,6 +1219,8 @@ function renderResults(){
       ${priorsHtml}
       ${ownedHtml}
     </div>
+
+    ${saveStackPanelHtml()}
 
     <div class="roadstrip-wrap">
       <div class="ministrip-h">Your priority roadmap — start left</div>
@@ -1381,8 +1542,34 @@ function restart(){
   answers.goals=[]; answers.teams=[]; answers.stack=[]; answers.stackOther=[]; answers.businessDesc=""; answers.url=""; answers.urlInferred=null;
   stackSearchText="";
   fSearch=""; fCat="all"; fComplex="all"; compareSet.clear(); expandedSet.clear();
+  SAVE_STATE="anon"; SAVE_ERROR="";
   render();
 }
+
+/* ===== auth bootstrap =====
+   On any load: check session, handle magic-link callback, push pending save. */
+(async function bootstrapAuth(){
+  if(!SUPA) return;
+  await refreshAuthUser();
+  const saved = await maybePersistPendingSave();
+  if(saved){
+    // Magic-link landed us back here; we just persisted the stack.
+    SAVE_STATE = "saved";
+    // If they're on results already, refresh that view; otherwise route them to dashboard.
+    if(showingResults){ renderResults(); }
+    else {
+      // Send them straight to the dashboard
+      setTimeout(function(){ location.href = "/stack.html"; }, 600);
+    }
+  } else if(AUTH_USER && showingResults){
+    SAVE_STATE = "saved"; // they're already signed in, show saved state
+    renderResults();
+  }
+  // React to subsequent auth changes (e.g. they sign out in another tab)
+  SUPA.auth.onAuthStateChange(function(_evt, session){
+    AUTH_USER = session ? { id: session.user.id, email: session.user.email } : null;
+  });
+})();
 </script>
 </body>
 </html>
