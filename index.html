@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#6c6cf5">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RightStack">
 <title>SynthMatch — the right AI stack, curated for your business</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -197,6 +203,10 @@
   .savestack form.ssform input{background:rgba(255,255,255,.06);border:1px solid var(--line2);color:#fff;border-radius:10px;padding:12px 14px;font-size:14.5px;font-family:var(--grot);outline:none;transition:.12s}
   .savestack form.ssform input:focus{border-color:var(--indigo);background:rgba(255,255,255,.09)}
   .savestack form.ssform button{padding:11px 16px;font-size:14px;white-space:nowrap}
+  .savestack form.ssotp{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+  .savestack form.ssotp input{background:rgba(255,255,255,.06);border:1px solid var(--line2);color:#fff;border-radius:10px;padding:12px 14px;font-size:18px;font-family:var(--mono);letter-spacing:.3em;text-align:center;outline:none;width:160px;transition:.12s}
+  .savestack form.ssotp input:focus{border-color:var(--indigo);background:rgba(255,255,255,.09)}
+  .savestack form.ssotp button{padding:11px 16px;font-size:14px;white-space:nowrap}
   .savestack.sent{grid-template-columns:auto 1fr;background:rgba(53,214,164,.07);border-color:rgba(53,214,164,.4)}
   .savestack.sent .ssicon{width:46px;height:46px;border-radius:11px;background:var(--greenSoft);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700}
   .savestack.sent .ssbody h3{color:var(--green)}
@@ -478,6 +488,7 @@
   <div id="card"></div>
 </div></div>
 
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="catalog.js"></script>
 <script src="scoring.js"></script>
@@ -498,10 +509,13 @@ const SUPABASE_URL = "https://mofrmrhjecsshdrkhvhq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_escMY33Wj0O5ZcHi-9vWtA_RC6vQV8B";
 
 /* ===== Supabase Auth (magic-link save-stack) =====
-   Session state drives the "Save your stack" panel and persistence across visits. */
+   Session state drives the "Save your stack" panel and persistence across visits.
+   flowType: 'implicit' survives the "email-security-scanner-pre-clicks-the-link"
+   problem better than PKCE — tokens come in the URL hash, no code-verifier dance. */
 const SUPA = (window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession:true, detectSessionInUrl:true, storage: window.localStorage }
+  auth: { persistSession:true, detectSessionInUrl:true, storage: window.localStorage, flowType: "implicit" }
 }) : null);
+let AUTH_ERROR_FROM_URL = ""; // populated if the magic-link callback returned an error
 let AUTH_USER = null;   // current logged-in user (email + id), null when anon
 
 async function refreshAuthUser(){
@@ -513,13 +527,41 @@ async function refreshAuthUser(){
   }catch(e){ console.warn("[RightStack] auth check failed:", e); return null; }
 }
 
+/* Read any auth error baked into the URL hash by Supabase (e.g. otp_expired). */
+function captureAuthErrorFromUrl(){
+  if(!location.hash || location.hash.indexOf("error=") === -1) return;
+  const h = new URLSearchParams(location.hash.replace(/^#/, ""));
+  const code = h.get("error_code") || h.get("error") || "";
+  const desc = h.get("error_description") || "";
+  if(code){
+    // Friendlier message for the most common case.
+    if(code === "otp_expired" || /expired|invalid/i.test(desc)){
+      AUTH_ERROR_FROM_URL = "The magic link expired or was already used. This usually happens when your email provider's security scanner clicks the link before you do. Easiest fix: send a new link and use the 6-digit code instead.";
+    } else {
+      AUTH_ERROR_FROM_URL = desc.replace(/\+/g, " ") || "Sign-in failed: " + code;
+    }
+    // Clean the error fragment out of the URL so refreshes don't keep showing it.
+    history.replaceState({}, "", location.pathname + (location.search||""));
+  }
+}
+
+/* Verify a 6-digit OTP the user pastes from their email. Bypasses the link entirely. */
+async function verifyOtpCode(email, code){
+  if(!SUPA) throw new Error("Auth not available");
+  const { data, error } = await SUPA.auth.verifyOtp({ email: email, token: code, type: "email" });
+  if(error) throw error;
+  AUTH_USER = data && data.session ? { id: data.session.user.id, email: data.session.user.email } : null;
+  return AUTH_USER;
+}
+
 /* Magic-link send: kicks off the email loop. We tuck the in-progress assessment
    answers into localStorage so we can persist the stack the moment they return. */
 async function sendStackMagicLink(email){
   if(!SUPA) throw new Error("Auth not available");
-  // Snapshot the current answers + saved tools so we can save them on callback
+  // Snapshot the current answers + saved tools + the email so we can save them on callback
   try {
     localStorage.setItem("rs_pending_save", JSON.stringify({
+      email: email,
       answers: answers,
       savedTools: Array.from(savedStack||[]),
       at: Date.now()
@@ -1082,26 +1124,95 @@ function saveStackPanelHtml(){
     </div>`;
   }
   if(SAVE_STATE === "sent"){
+    // Show the "check your email" message PLUS a 6-digit code fallback. If the
+    // magic link gets eaten by a security scanner, the code still works.
     return `<div class="savestack sent">
       <div class="ssicon">✉</div>
-      <div class="ssbody">
+      <div class="ssbody" style="grid-column:1/-1">
         <h3>Check your inbox.</h3>
-        <p>We sent a magic link to <b>${esc(PENDING_EMAIL||"your email")}</b>. Click it from any device and your stack lands in your live dashboard, ready when you come back.</p>
+        <p>We sent a sign-in email to <b>${esc(PENDING_EMAIL||"your email")}</b>. <b>Click the link</b> from any device — or, if the link doesn't work (corporate email scanners can break magic links), <b>paste the 6-digit code</b> from the same email here:</p>
+        <form class="ssotp" onsubmit="return submitOtpCode(event)">
+          <input type="text" id="otpCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
+          <button class="btn primary" type="submit" id="otpBtn">Verify code</button>
+          <button type="button" class="btn ghost" onclick="resetSaveStack()">Use a different email</button>
+        </form>
+        ${SAVE_ERROR ? `<div class="sserror">${esc(SAVE_ERROR)}</div>` : ''}
       </div>
     </div>`;
   }
   // default = anonymous prompt
+  const urlErr = AUTH_ERROR_FROM_URL ? `<div class="sserror">${esc(AUTH_ERROR_FROM_URL)}</div>` : '';
   return `<div class="savestack">
     <div class="ssbody">
       <h3>Save your stack — get a live dashboard you can return to.</h3>
-      <p>We'll email you a one-click sign-in link. Your stack lives at a personal URL that stays current as the market moves. No password, no spam.</p>
+      <p>We'll email you a one-click sign-in link plus a 6-digit code. Your stack lives at a personal URL that stays current as the market moves. No password, no spam.</p>
+      ${urlErr}
       ${SAVE_ERROR ? `<div class="sserror">${esc(SAVE_ERROR)}</div>` : ''}
     </div>
     <form class="ssform" onsubmit="return submitSaveStack(event)">
       <input type="email" id="saveStackEmail" placeholder="you@company.com" required autocomplete="email" />
-      <button class="btn primary" type="submit" id="saveStackBtn">Send magic link</button>
+      <button class="btn primary" type="submit" id="saveStackBtn">Send sign-in email</button>
     </form>
   </div>`;
+}
+
+function resetSaveStack(){
+  SAVE_STATE = "anon"; SAVE_ERROR = ""; PENDING_EMAIL = "";
+  renderResults();
+}
+
+async function submitOtpCode(e){
+  e.preventDefault();
+  const codeEl = document.getElementById("otpCode");
+  const btn = document.getElementById("otpBtn");
+  const code = (codeEl.value||"").replace(/\D/g,"").slice(0,6);
+  if(code.length !== 6){
+    SAVE_ERROR = "Code should be the 6-digit number from your email.";
+    renderResults(); return false;
+  }
+  btn.disabled = true; btn.textContent = "Verifying…";
+  try{
+    await verifyOtpCode(PENDING_EMAIL, code);
+    // Treat as if the magic-link callback succeeded — persist the pending stack.
+    const saved = await maybePersistPendingSaveForAuthed();
+    SAVE_STATE = "saved";
+    renderResults();
+    if(saved){ setTimeout(function(){ location.href = "/stack.html"; }, 800); }
+  }catch(err){
+    console.warn("[RightStack] OTP verify failed:", err);
+    SAVE_ERROR = (err && err.message) ? err.message : "That code didn't work. Double-check it or send a new email.";
+    btn.disabled = false; btn.textContent = "Verify code";
+    renderResults();
+  }
+  return false;
+}
+
+/* Same persistence logic as maybePersistPendingSave, but works when we already
+   have a fresh session in hand (e.g. immediately after verifyOtp succeeded). */
+async function maybePersistPendingSaveForAuthed(){
+  if(!AUTH_USER) return null;
+  let pending = null;
+  try { pending = JSON.parse(localStorage.getItem("rs_pending_save") || "null"); } catch(_e){}
+  // Fallback: if no pending save was set (e.g. they ran the assessment in a different tab),
+  // build one from the current answers in memory.
+  const pa = (pending && pending.answers) ? pending.answers : answers;
+  const interests = (typeof interestsFromAnswers === "function") ? interestsFromAnswers(pa) : [];
+  try{
+    const res = await fetch(SUPABASE_URL + "/rest/v1/rpc/subscriber_upsert", {
+      method:"POST",
+      headers:{ "apikey":SUPABASE_KEY, "Authorization":"Bearer "+SUPABASE_KEY, "Content-Type":"application/json" },
+      body: JSON.stringify({
+        p_email: AUTH_USER.email,
+        p_stack: pa.stack||[], p_stack_other: pa.stackOther||[],
+        p_goals: pa.goals||[], p_teams: pa.teams||[],
+        p_size: pa.size||null, p_industry: pa.industry||null, p_budget: pa.budget||null,
+        p_interests: interests, p_source: 'save-stack-otp',
+        p_business_desc: (pa.businessDesc||"").trim() || null
+      })
+    });
+    if(res.ok){ localStorage.removeItem("rs_pending_save"); return await res.json(); }
+  }catch(e){ console.warn("[RightStack] persist failed:", e); }
+  return null;
 }
 
 let PENDING_EMAIL = "";
@@ -1638,21 +1749,43 @@ function restart(){
    On any load: check session, handle magic-link callback, push pending save. */
 (async function bootstrapAuth(){
   if(!SUPA) return;
+  captureAuthErrorFromUrl();   // surface "magic link expired" etc.
   await refreshAuthUser();
   const saved = await maybePersistPendingSave();
+
+  // Was the user mid-save when their magic link failed? Route them to results
+  // so they can use the 6-digit code fallback instead of being dumped at home.
+  let hadPending = false;
+  try { hadPending = !!JSON.parse(localStorage.getItem("rs_pending_save") || "null"); } catch(_e){}
+
   if(saved){
-    // Magic-link landed us back here; we just persisted the stack.
     SAVE_STATE = "saved";
-    // If they're on results already, refresh that view; otherwise route them to dashboard.
     if(showingResults){ renderResults(); }
-    else {
-      // Send them straight to the dashboard
-      setTimeout(function(){ location.href = "/stack.html"; }, 600);
-    }
+    else { setTimeout(function(){ location.href = "/stack.html"; }, 600); }
   } else if(AUTH_USER && showingResults){
-    SAVE_STATE = "saved"; // they're already signed in, show saved state
+    SAVE_STATE = "saved";
     renderResults();
+  } else if(AUTH_ERROR_FROM_URL && hadPending){
+    // Magic-link bounced back with an error AND we know the user was mid-save.
+    // Restore their answers from localStorage and route them to the results view,
+    // where the save panel will show the error + the 6-digit fallback.
+    try{
+      const p = JSON.parse(localStorage.getItem("rs_pending_save"));
+      if(p && p.answers){
+        Object.assign(answers, p.answers);
+        if(p.answers.stack)      answers.stack = p.answers.stack;
+        if(p.answers.stackOther) answers.stackOther = p.answers.stackOther;
+        if(p.answers.goals)      answers.goals = p.answers.goals;
+        if(p.answers.teams)      answers.teams = p.answers.teams;
+      }
+      PENDING_EMAIL = (p && p.email) || PENDING_EMAIL;
+      showingResults = true;
+      // Stay on the "send a magic link" state so the URL error renders prominently
+      SAVE_STATE = "anon";
+      renderResults();
+    }catch(_e){}
   }
+
   // React to subsequent auth changes (e.g. they sign out in another tab)
   SUPA.auth.onAuthStateChange(function(_evt, session){
     AUTH_USER = session ? { id: session.user.id, email: session.user.email } : null;
