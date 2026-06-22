@@ -154,6 +154,10 @@
   .flow-nav{display:flex;justify-content:space-between;align-items:center;margin-top:24px;gap:12px}
   /* stack-sharing step */
   .stackbox{margin:6px 0 4px}
+  .stacktabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+  .ststab{background:transparent;border:none;color:var(--muted);font-family:var(--grot);font-weight:600;font-size:13.5px;padding:9px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.12s}
+  .ststab:hover{color:var(--ink)}
+  .ststab.on{color:var(--ink);border-bottom-color:var(--indigo)}
   .stacksearch{width:100%;background:var(--panel2);border:1.5px solid var(--line2);color:#fff;border-radius:12px;padding:13px 15px;font-family:var(--grot);font-size:15px;outline:none;transition:.14s}
   .stacksearch:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(108,108,245,.18)}
   .stackchips{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 6px}
@@ -318,6 +322,7 @@
   .whyrow{color:#c7cbe0;font-size:13.5px;line-height:1.65}
   .whyrow.whycon{color:var(--amber);opacity:.92}
   .whyrow.whycon{padding-top:2px}
+  .whylead{color:#f4f5fb;font-size:14.5px;line-height:1.55;font-weight:500;padding-bottom:10px;margin-bottom:8px;border-bottom:1px solid rgba(108,108,245,.18)}
   .sigs{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
   .sig{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line2);color:#aab0c8;border-radius:7px;padding:5px 10px}
   .sig.ent{border-color:var(--greenSoft);color:var(--green)}
@@ -847,15 +852,15 @@ function renderUrlStep(s){
   const prog = Math.round((stepIndex/qCount)*100);
   const inf = answers.urlInferred;
   const inferredHtml = inf ? `<div class="urlinferred">
-    <div class="ulb">From <b>${esc(answers.url)}</b> — we pulled this. You can change any of it on the next screens.</div>
+    <div class="ulb">From <b>${esc(answers.url)}</b>, here's what we understood about your business. You can change any of it on the next screens.</div>
     <div class="ulrows">
-      ${inf.business_desc ? `<div class="ulrow"><span>What you do:</span> ${esc(inf.business_desc)}</div>` : ''}
+      ${inf.business_summary ? `<div class="ulrow"><span>About you:</span> ${esc(inf.business_summary)}</div>` : (inf.what_they_do ? `<div class="ulrow"><span>What you do:</span> ${esc(inf.what_they_do)}</div>` : '')}
+      ${inf.primary_audience ? `<div class="ulrow"><span>You sell to:</span> ${esc(inf.primary_audience)}</div>` : ''}
+      ${Array.isArray(inf.offerings) && inf.offerings.length ? `<div class="ulrow"><span>What you offer:</span> ${inf.offerings.map(esc).join(", ")}</div>` : ''}
       ${inf.industry && inf.industry !== "other" ? `<div class="ulrow"><span>Industry:</span> ${esc(inf.industry)}</div>` : ''}
       ${inf.size_hint && inf.size_hint !== "unknown" ? `<div class="ulrow"><span>Scale:</span> ${esc(inf.size_hint)}</div>` : ''}
-      ${inf.primary_audience ? `<div class="ulrow"><span>Sells to:</span> ${esc(inf.primary_audience)}</div>` : ''}
-      ${Array.isArray(inf.products_mentioned) && inf.products_mentioned.length ? `<div class="ulrow"><span>Tools mentioned:</span> ${inf.products_mentioned.map(esc).join(", ")}</div>` : ''}
     </div>
-    <div class="ulfoot">Confidence: ${esc(inf.confidence||"medium")}.</div>
+    <div class="ulfoot">Confidence: ${esc(inf.confidence||"medium")}. ${ Array.isArray(inf.offerings) && inf.offerings.length ? "(<i>Offerings shown above are what you sell — not your internal stack. We'll ask about your stack next.</i>)" : "" }</div>
   </div>` : '';
   cardEl.innerHTML = `<div class="panel">
     <div class="progress"><i style="width:${prog}%"></i></div>
@@ -916,34 +921,18 @@ async function continueFromUrl(){
     const VALID_TEAMS = ["marketing","sales","operations","hr","finance","support","product","engineering"];
     if(inf.industry && VALID_INDUSTRY.indexOf(inf.industry)!==-1) answers.industry = inf.industry;
     if(inf.size_hint && VALID_SIZE.indexOf(inf.size_hint)!==-1) answers.size = inf.size_hint;
-    if(inf.business_desc) answers.businessDesc = String(inf.business_desc).slice(0,280);
+    // Use the new business_summary if present, fall back to what_they_do, then any legacy field.
+    const inferredDesc = inf.business_summary || inf.what_they_do || inf.business_desc || "";
+    if(inferredDesc) answers.businessDesc = String(inferredDesc).slice(0,280);
     if(Array.isArray(inf.goals_hint)){
       answers.goals = inf.goals_hint.filter(function(g){return VALID_GOALS.indexOf(g)!==-1;}).slice(0,4);
     }
     if(Array.isArray(inf.teams_hint)){
       answers.teams = inf.teams_hint.filter(function(t){return VALID_TEAMS.indexOf(t)!==-1;}).slice(0,4);
     }
-
-    // Match products_mentioned to our catalog
-    if(Array.isArray(inf.products_mentioned)){
-      const matched = [];
-      const unmatched = [];
-      inf.products_mentioned.forEach(function(name){
-        const n = String(name||"").trim().toLowerCase();
-        if(!n) return;
-        const tool = AI_TOOLS.find(function(t){ return t.name.toLowerCase()===n || t.id===n.replace(/\s+/g,"-"); });
-        if(tool){ if(matched.indexOf(tool.id)===-1) matched.push(tool.id); }
-        else { unmatched.push(String(name).trim()); }
-      });
-      if(matched.length){
-        answers.stack = (answers.stack||[]).slice();
-        matched.forEach(function(id){ if(answers.stack.indexOf(id)===-1) answers.stack.push(id); });
-      }
-      if(unmatched.length){
-        answers.stackOther = (answers.stackOther||[]).slice();
-        unmatched.forEach(function(n){ if(answers.stackOther.indexOf(n)===-1) answers.stackOther.push(n); });
-      }
-    }
+    // NOTE: we deliberately do NOT auto-populate the user's stack from anything
+    // on the website. Homepages show what a business sells, not what they use.
+    // The user will tell us their stack explicitly in the next step.
     render(); // re-render to show inferred summary; user clicks Continue to proceed
   }catch(e){
     if(status) status.innerHTML = '<div class="urlerror">Network error — continuing without inference.</div>';
@@ -961,17 +950,34 @@ function renderStackStep(s){
     <h2 class="q">${s.q}</h2>
     <p class="qsub">${s.sub||''}</p>
     <div class="stackbox">
-      <input class="stacksearch" id="stackSearch" type="text" autocomplete="off"
-        placeholder="Start typing — e.g. ChatGPT, HubSpot, Notion…" value="${esc(stackSearchText||'')}"
-        oninput="stackSearchText=this.value;updateStackSuggestions()" />
-      <div class="stackchips" id="stackChips"></div>
-      <div class="stacksuggs" id="stackSuggs"></div>
-      <div class="stackcustom">
-        <label class="flabel" style="font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;color:var(--dim);text-transform:uppercase;display:block;margin-bottom:6px">Don't see your tool? Add it manually:</label>
-        <input class="stacksearch" id="customTool" type="text" autocomplete="off"
-          placeholder="Type the tool name, press Enter to add"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTool();}" />
+      <div class="stacktabs">
+        <button type="button" class="ststab on" data-mode="search" onclick="setStackMode('search')">Search & add</button>
+        <button type="button" class="ststab" data-mode="paste" onclick="setStackMode('paste')">Paste a list</button>
       </div>
+
+      <div id="stackModeSearch">
+        <input class="stacksearch" id="stackSearch" type="text" autocomplete="off"
+          placeholder="Start typing — e.g. ChatGPT, HubSpot, Notion…" value="${esc(stackSearchText||'')}"
+          oninput="stackSearchText=this.value;updateStackSuggestions()" />
+        <div class="stacksuggs" id="stackSuggs"></div>
+        <div class="stackcustom">
+          <label class="flabel" style="font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;color:var(--dim);text-transform:uppercase;display:block;margin-bottom:6px">Don't see your tool? Add it manually:</label>
+          <input class="stacksearch" id="customTool" type="text" autocomplete="off"
+            placeholder="Type the tool name, press Enter to add"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTool();}" />
+        </div>
+      </div>
+
+      <div id="stackModePaste" style="display:none">
+        <label class="flabel" style="font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;color:var(--dim);text-transform:uppercase;display:block;margin-bottom:6px">Paste anything — a column from your tracking spreadsheet, a bulleted list, or even a sentence:</label>
+        <textarea class="freetextinput" id="stackPaste" rows="6" placeholder="HubSpot&#10;Notion&#10;Klaviyo&#10;Mailchimp&#10;Zapier&#10;&#10;...or: 'We use HubSpot for CRM, Klaviyo for email, Notion for our wiki, and Zapier glues it all together.'"></textarea>
+        <div style="display:flex;gap:10px;margin-top:10px;align-items:center;flex-wrap:wrap">
+          <button type="button" class="btn primary" id="stackPasteBtn" onclick="extractStackFromPaste()">Extract tools</button>
+          <span id="stackPasteStatus" style="color:var(--muted);font-size:13px"></span>
+        </div>
+      </div>
+
+      <div class="stackchips" id="stackChips"></div>
       <div class="stackcount" id="stackCount"></div>
     </div>
     <div class="flow-nav">
@@ -1018,6 +1024,66 @@ function onFreetextInput(key, val){
   const cnt = document.getElementById("freetextCount");
   const max = STEPS[stepIndex].maxlen || 280;
   if(cnt) cnt.textContent = (val||"").length + " / " + max;
+}
+
+/* ----- stack input mode switch + paste-list extraction ----- */
+function setStackMode(mode){
+  const tabs = document.querySelectorAll(".ststab");
+  tabs.forEach(function(t){ t.classList.toggle("on", t.dataset.mode === mode); });
+  const search = document.getElementById("stackModeSearch");
+  const paste = document.getElementById("stackModePaste");
+  if(search) search.style.display = mode === "search" ? "" : "none";
+  if(paste)  paste.style.display  = mode === "paste"  ? "" : "none";
+  if(mode === "paste"){
+    setTimeout(function(){ const el = document.getElementById("stackPaste"); if(el) el.focus(); }, 30);
+  } else {
+    setTimeout(function(){ const el = document.getElementById("stackSearch"); if(el) el.focus(); }, 30);
+  }
+}
+
+async function extractStackFromPaste(){
+  const ta = document.getElementById("stackPaste");
+  const btn = document.getElementById("stackPasteBtn");
+  const status = document.getElementById("stackPasteStatus");
+  const text = (ta && ta.value || "").trim();
+  if(!text){ if(status) status.textContent = "Paste something first."; return; }
+  if(btn){ btn.disabled = true; btn.textContent = "Extracting…"; }
+  if(status) status.textContent = "Reading your list with Claude…";
+  try{
+    const res = await fetch(SUPABASE_URL + "/functions/v1/extract_stack", {
+      method:"POST",
+      headers:{ "apikey":SUPABASE_KEY, "Authorization":"Bearer "+SUPABASE_KEY, "Content-Type":"application/json" },
+      body: JSON.stringify({ text: text })
+    });
+    if(!res.ok){
+      const err = await res.json().catch(function(){return{};});
+      throw new Error(err.error || ("HTTP " + res.status));
+    }
+    const j = await res.json();
+    const matched = j.matched || [];
+    const unmatched = j.unmatched || [];
+    if(!answers.stack) answers.stack = [];
+    if(!answers.stackOther) answers.stackOther = [];
+    matched.forEach(function(id){ if(answers.stack.indexOf(id)===-1) answers.stack.push(id); });
+    unmatched.forEach(function(name){
+      const dup = answers.stackOther.some(function(x){ return x.toLowerCase()===name.toLowerCase(); });
+      if(!dup) answers.stackOther.push(name);
+    });
+    if(status){
+      status.style.color = "var(--green)";
+      status.textContent = "Added " + matched.length + " from catalog" + (unmatched.length ? (" + " + unmatched.length + " custom") : "") + ".";
+    }
+    refreshStackChips();
+    updateStackSuggestions();
+    // Clear the textarea so they can paste more if needed
+    if(ta) ta.value = "";
+    // Auto-switch back to search view so they can see the chips
+    setTimeout(function(){ setStackMode("search"); }, 1200);
+  }catch(e){
+    if(status){ status.style.color = "var(--red)"; status.textContent = "Couldn't extract: " + (e.message || e); }
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = "Extract tools"; }
+  }
 }
 
 function updateStackSuggestions(){
@@ -1301,6 +1367,10 @@ const FIT_TIERS = ["strong","good","optional","notfit"];
 const FIT_TIER_LABELS = { strong:"Strong fit", good:"Good fit", optional:"Optional", notfit:"Not a fit" };
 
 let fSearch="", fCat="all", fComplex="all", fTier=null; // fTier null = auto-pick highest non-empty
+/* Personalized "why this matters" reasons keyed by tool id. Populated
+   asynchronously after results render — never blocking. */
+let PERSONALIZED_REASONS = {};
+let PERSONALIZE_FETCHED = false;
 const compareSet = new Set();
 const expandedSet = new Set();
 
@@ -1399,6 +1469,61 @@ function renderResults(){
       <button class="btn ghost" onclick="goHome()">Back to home</button></div>`;
 
   renderStackList();
+  // Kick off personalized reasons once per session of results
+  maybeFetchPersonalizedReasons();
+}
+
+/* Fetch one-sentence "why this matters" reasons for the top tools, given the
+   user's business context. Runs once per assessment, then renderStackList()
+   is called again to inject the reasons into the cards. */
+async function maybeFetchPersonalizedReasons(){
+  if(PERSONALIZE_FETCHED) return;
+  // Build context from whatever we have
+  const inf = answers.urlInferred || {};
+  const ctx = {
+    business_summary: inf.business_summary || "",
+    what_they_do: inf.what_they_do || "",
+    businessDesc: (answers.businessDesc||"").trim(),
+    primary_audience: inf.primary_audience || "",
+    offerings: Array.isArray(inf.offerings) ? inf.offerings : [],
+    industry: answers.industry || inf.industry || "",
+    size: answers.size || inf.size_hint || "",
+    goals: answers.goals || [],
+    teams: answers.teams || [],
+    stack_names: (answers.stack||[]).map(function(id){
+      const t = AI_TOOLS.find(function(x){return x.id===id;});
+      return t ? t.name : id;
+    }).concat(answers.stackOther||[])
+  };
+  // Skip if we don't have real context — falls back to the deterministic reasons.
+  const hasCtx = ctx.business_summary.length > 20 || ctx.what_they_do.length > 10 || ctx.businessDesc.length > 10;
+  if(!hasCtx){ PERSONALIZE_FETCHED = true; return; }
+
+  // Build the top-N list from the already-built stack
+  const stack = buildMatchedStack(answers, AI_TOOLS);
+  const ownedIds = new Set(answers.stack||[]);
+  const top = stack.filter(function(s){ return !ownedIds.has(s.tool.id); }).slice(0, 10);
+  if(!top.length){ PERSONALIZE_FETCHED = true; return; }
+
+  const toolPayload = top.map(function(s){
+    return { id: s.tool.id, name: s.tool.name, category: s.tool.category, description: s.tool.desc || "" };
+  });
+
+  PERSONALIZE_FETCHED = true;
+  try{
+    const res = await fetch(SUPABASE_URL + "/functions/v1/personalize", {
+      method:"POST",
+      headers:{ "apikey":SUPABASE_KEY, "Authorization":"Bearer "+SUPABASE_KEY, "Content-Type":"application/json" },
+      body: JSON.stringify({ context: ctx, tools: toolPayload })
+    });
+    if(!res.ok) return;
+    const j = await res.json();
+    if(j && j.reasons && typeof j.reasons === "object"){
+      PERSONALIZED_REASONS = j.reasons;
+      // Re-render the list so the new reasons appear inline
+      if(showingResults) renderStackList();
+    }
+  }catch(e){ console.warn("[RightStack] personalize failed:", e); }
 }
 
 function renderStackList(){
@@ -1582,15 +1707,19 @@ function stackCard(s){
   const freeTag = t.hasFreePlan ? '<span class="sig free">Free plan</span>' : '';
   const newTag  = (NEW_IDS.has(t.id) || t.isNew) ? '<span class="sig new">New</span>' : '';
   const sigs = `${newTag}<span class="sig">${complexityLabel(t.ease)}</span>${entTag}${freeTag}`;
+  // Personalized "why this matters" — lead with it if available, fall back to
+  // the deterministic reasons. Stored per tool id; populated async.
+  const personalReason = PERSONALIZED_REASONS[t.id];
   // Positive signals — what makes this a fit
   const positives = []
     .concat(s.coveredLabels.length ? ["Covers "+s.coveredLabels.length+" of your priority use case"+(s.coveredLabels.length>1?"s":"")+" ("+s.coveredLabels.join(", ")+")"] : [])
     .concat(s.reasons);
   // Concerns — what's working against the fit
   const concerns = deriveConcerns(t, answers);
+  const lead = personalReason ? `<div class="whylead">${esc(personalReason)}</div>` : "";
   const posHtml = positives.map(function(w){ return `<div class="whyrow">— ${esc(w)}</div>`; }).join("");
   const conHtml = concerns.map(function(w){ return `<div class="whyrow whycon">— ${esc(w)}</div>`; }).join("");
-  const why = posHtml + conHtml;
+  const why = lead + posHtml + conHtml;
   const saved=savedStack.has(t.id), inCmp=compareSet.has(t.id), expanded=expandedSet.has(t.id);
   const detail = expanded ? buildDetailPane(t, answers.stack||[]) : "";
   return `<div class="scard">
@@ -1742,6 +1871,7 @@ function restart(){
   stackSearchText="";
   fSearch=""; fCat="all"; fComplex="all"; compareSet.clear(); expandedSet.clear();
   SAVE_STATE="anon"; SAVE_ERROR="";
+  PERSONALIZED_REASONS = {}; PERSONALIZE_FETCHED = false;
   render();
 }
 
