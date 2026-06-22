@@ -137,6 +137,18 @@
   .subjectbox .l{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
   .subjectbox .v{font-weight:700;color:var(--ink);font-size:14px;margin-top:3px;line-height:1.35}
   .subjectbox .p{color:var(--muted);font-size:12.5px;margin-top:5px}
+  .sendrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  @media(max-width:680px){.sendrow{grid-template-columns:1fr}}
+  .sendcol{border:1px solid var(--line);border-radius:11px;padding:12px 14px;background:var(--panel2)}
+  .sendlbl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;margin-bottom:6px;font-weight:700}
+  .sendinline{display:flex;gap:8px;align-items:center}
+  .sendinline input{flex:1;background:var(--panel);border:1px solid var(--line2);color:var(--ink);border-radius:8px;padding:8px 11px;font-family:var(--grot);font-size:13px;min-width:0}
+  .sendinline input:focus{border-color:var(--indigo);outline:none}
+  .sendstatus{padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;min-height:18px;display:none}
+  .sendstatus:not(:empty){display:block}
+  .sendstatus.info{background:rgba(108,108,245,.12);color:var(--indigo2)}
+  .sendstatus.ok{background:rgba(53,214,164,.12);color:var(--green)}
+  .sendstatus.error{background:var(--redSoft);color:var(--red)}
   .iframewrap{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#0a0a14}
   .iframewrap iframe{width:100%;height:780px;border:none;display:block}
   .placeholder{padding:60px 30px;text-align:center;color:var(--muted);border:1px dashed var(--line2);border-radius:11px}
@@ -565,9 +577,64 @@ function drawPreview(payload, html, sub){
       <div class="l" style="margin-top:10px">Preheader (inbox preview text)</div>
       <div class="p">${esc(payload.preheader||"")}</div>
     </div>
+    <div class="sendrow">
+      <div class="sendcol">
+        <label class="sendlbl">Send a TEST to any email (your own, to QA)</label>
+        <div class="sendinline">
+          <input type="email" id="testToEmail" placeholder="you@yourdomain.com" />
+          <button class="mini pub" onclick="sendDigestTest(${sub.id})">Send test</button>
+        </div>
+      </div>
+      <div class="sendcol">
+        <label class="sendlbl">Send LIVE to this subscriber</label>
+        <div class="sendinline">
+          <span style="font-size:13px;color:var(--muted);flex:1;align-self:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(payload.email||"")}</span>
+          <button class="mini" style="background:rgba(53,214,164,.12);color:var(--green);border-color:rgba(53,214,164,.3)" onclick="sendDigestLive(${sub.id})">Send live</button>
+        </div>
+      </div>
+    </div>
+    <div id="sendStatus" class="sendstatus"></div>
     <div class="iframewrap"><iframe id="emailFrame"></iframe></div>`;
   const f = document.getElementById("emailFrame");
   f.srcdoc = html;
+}
+
+async function sendDigestTest(subId){
+  const sub = SUBS.find(s => s.id===subId);
+  if(!sub) return;
+  const toEl = document.getElementById("testToEmail");
+  const to = (toEl?.value||"").trim();
+  if(!to){ setSendStatus("Enter an email to send the test to.", "error"); return; }
+  setSendStatus("Sending test to "+to+"…", "info");
+  try{
+    const j = await api("send_digest", { token: sub.token, kind: "test", test_to: to, days: DIGEST_DAYS });
+    if(j.sent){
+      setSendStatus("✓ Test sent to "+to+" — Resend ID "+(j.resend_id||"(none)"), "ok");
+      if(toEl) toEl.value = "";
+    } else {
+      setSendStatus("Send failed: "+(j.error||"unknown"), "error");
+    }
+  }catch(e){ setSendStatus("Send failed: "+e.message, "error"); }
+}
+async function sendDigestLive(subId){
+  const sub = SUBS.find(s => s.id===subId);
+  if(!sub) return;
+  if(!confirm("Send the LIVE digest to "+sub.email+"? This counts as a real send and will be logged. Subscribers who opted in shouldn't be surprised — but make sure you're confident in the content.")) return;
+  setSendStatus("Sending to "+sub.email+"…", "info");
+  try{
+    const j = await api("send_digest", { token: sub.token, kind: "live", days: DIGEST_DAYS });
+    if(j.sent){
+      setSendStatus("✓ Sent to "+sub.email+" — Resend ID "+(j.resend_id||"(none)"), "ok");
+    } else {
+      setSendStatus("Send failed: "+(j.error||"unknown"), "error");
+    }
+  }catch(e){ setSendStatus("Send failed: "+e.message, "error"); }
+}
+function setSendStatus(msg, kind){
+  const el = document.getElementById("sendStatus");
+  if(!el) return;
+  el.className = "sendstatus " + (kind||"");
+  el.textContent = msg;
 }
 /* ===== add a tool ===== */
 const DOMAINS = [
