@@ -194,6 +194,10 @@
   .priorstext b{color:#fff;font-weight:700}
   .priorsbd{color:var(--muted);font-size:13.5px;margin-top:8px;line-height:1.55}
   .priorsbd i{color:#dde0ee}
+  .priorspain{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);color:#dde0ee;font-size:14px;line-height:1.55}
+  .priorspain .ppl{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);font-weight:700;margin-right:6px}
+  .priorspain i{color:#fff;font-weight:500}
+  .priorspain .ppn{color:var(--muted);font-size:12.5px;margin-top:4px;font-style:italic}
   .ownedcallout{margin-top:20px;padding:14px 16px;border:1px solid rgba(108,108,245,.3);background:rgba(108,108,245,.06);border-radius:12px}
   /* save-stack panel — sits prominently above the matched-stack list */
   .savestack{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center;
@@ -762,6 +766,10 @@ const STEPS = [
     q:"In one sentence, what does your business actually do?",
     sub:"Industries are too broad — a data-analysis firm and a travel agency both look the same on a dropdown. Tell us in your own words so we can ground the recommendations.",
     placeholder:"e.g. 'We run wellness retreats for corporate teams' or 'B2B SaaS for fleet operators in Europe'" },
+  { key:"painPoint", type:"freetext", optional:true, maxlen:280,
+    q:"What's the one thing you wish you weren't doing manually right now?",
+    sub:"This is the single highest-signal answer for us. The tool we recommend that directly addresses this is the one most worth your time. Skip if you'd rather not say — but a sentence is enough.",
+    placeholder:"e.g. 'manually pulling reports every Monday for the leadership team' or 'chasing invoices that should auto-send' or 'updating our CRM from meeting notes'" },
   { key:"goals", multi:true, optional:true, grid:true, q:"What are you trying to achieve?", sub:"Pick all that apply.",
     opts:[
       {val:"efficiency",label:"Increase efficiency"}, {val:"costs",label:"Reduce costs"},
@@ -787,7 +795,7 @@ const STEPS = [
 
 let stepIndex = 0;
 let showingResults = false;
-const answers = { goals:[], teams:[], stack:[], stackOther:[], businessDesc:"", url:"", urlInferred:null };
+const answers = { goals:[], teams:[], stack:[], stackOther:[], businessDesc:"", painPoint:"", url:"", urlInferred:null };
 let stackSearchText = "";
 const savedStack = new Set();
 const cardEl = document.getElementById("card");
@@ -1344,11 +1352,16 @@ function prioritiesRecapHtml(){
   if(answers.businessDesc && answers.businessDesc.trim()){
     bdHtml = '<div class="priorsbd">You described your business as: <i>"'+esc(answers.businessDesc.trim())+'"</i></div>';
   }
-  if(!bits.length && !bdHtml) return "";
+  // Pain point — this is the highest-leverage signal; surface it prominently
+  let pnHtml = "";
+  if(answers.painPoint && answers.painPoint.trim()){
+    pnHtml = '<div class="priorspain"><span class="ppl">The pain you flagged:</span> <i>"'+esc(answers.painPoint.trim())+'"</i><div class="ppn">The strongest match below should address this. If it doesn\'t, tell us so.</div></div>';
+  }
+  if(!bits.length && !bdHtml && !pnHtml) return "";
   const sentence = bits.length
     ? "You told us you're "+bits.join(", ")+". Here's what we matched against that."
     : "";
-  return '<div class="priorsbox">'+(sentence?'<div class="priorstext">'+sentence+'</div>':'')+bdHtml+'</div>';
+  return '<div class="priorsbox">'+(sentence?'<div class="priorstext">'+sentence+'</div>':'')+bdHtml+pnHtml+'</div>';
 }
 
 /* ---- Stage II + III: priority roadmap + filterable matched stack ---- */
@@ -1484,6 +1497,7 @@ async function maybeFetchPersonalizedReasons(){
     business_summary: inf.business_summary || "",
     what_they_do: inf.what_they_do || "",
     businessDesc: (answers.businessDesc||"").trim(),
+    painPoint: (answers.painPoint||"").trim(),
     primary_audience: inf.primary_audience || "",
     offerings: Array.isArray(inf.offerings) ? inf.offerings : [],
     industry: answers.industry || inf.industry || "",
@@ -1496,7 +1510,8 @@ async function maybeFetchPersonalizedReasons(){
     }).concat(answers.stackOther||[])
   };
   // Skip if we don't have real context — falls back to the deterministic reasons.
-  const hasCtx = ctx.business_summary.length > 20 || ctx.what_they_do.length > 10 || ctx.businessDesc.length > 10;
+  // The pain point alone is rich enough context to personalize.
+  const hasCtx = ctx.business_summary.length > 20 || ctx.what_they_do.length > 10 || ctx.businessDesc.length > 10 || ctx.painPoint.length > 10;
   if(!hasCtx){ PERSONALIZE_FETCHED = true; return; }
 
   // Build the top-N list from the already-built stack
@@ -1867,7 +1882,7 @@ async function submitLead(e){
 function restart(){
   stepIndex=0; showingResults=false;
   Object.keys(answers).forEach(function(k){ delete answers[k]; });
-  answers.goals=[]; answers.teams=[]; answers.stack=[]; answers.stackOther=[]; answers.businessDesc=""; answers.url=""; answers.urlInferred=null;
+  answers.goals=[]; answers.teams=[]; answers.stack=[]; answers.stackOther=[]; answers.businessDesc=""; answers.painPoint=""; answers.url=""; answers.urlInferred=null;
   stackSearchText="";
   fSearch=""; fCat="all"; fComplex="all"; compareSet.clear(); expandedSet.clear();
   SAVE_STATE="anon"; SAVE_ERROR="";
