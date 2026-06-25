@@ -762,10 +762,10 @@ const STEPS = [
       {val:"finance",  label:"Finance / Insurance"},
       {val:"healthcare",label:"Healthcare"},
       {val:"other",    label:"Something else"}] },
-  { key:"businessDesc", type:"freetext", optional:true, maxlen:280,
-    q:"In one sentence, what does your business actually do?",
-    sub:"Industries are too broad — a data-analysis firm and a travel agency both look the same on a dropdown. Tell us in your own words so we can ground the recommendations.",
-    placeholder:"e.g. 'We run wellness retreats for corporate teams' or 'B2B SaaS for fleet operators in Europe'" },
+  { key:"businessDesc", type:"freetext", optional:true, maxlen:800, rows:5,
+    q:"In a few sentences, what does your business actually do?",
+    sub:"Industries are too broad — a data-analysis firm and a travel agency both look the same on a dropdown. Tell us what you actually do, who you sell to, and anything unusual about your operation. The more you tell us, the better our recommendations land.",
+    placeholder:"e.g. 'We run multi-day wellness retreats for corporate leadership teams in the western US. Most of our revenue comes from repeat enterprise clients. We're a team of 8, mostly part-time facilitators, and we manage logistics, marketing, and finance ourselves.'" },
   { key:"painPoint", type:"freetext", optional:true, maxlen:280,
     q:"What's the one thing you wish you weren't doing manually right now?",
     sub:"This is the single highest-signal answer for us. The tool we recommend that directly addresses this is the one most worth your time. Skip if you'd rather not say — but a sentence is enough.",
@@ -931,7 +931,7 @@ async function continueFromUrl(){
     if(inf.size_hint && VALID_SIZE.indexOf(inf.size_hint)!==-1) answers.size = inf.size_hint;
     // Use the new business_summary if present, fall back to what_they_do, then any legacy field.
     const inferredDesc = inf.business_summary || inf.what_they_do || inf.business_desc || "";
-    if(inferredDesc) answers.businessDesc = String(inferredDesc).slice(0,280);
+    if(inferredDesc) answers.businessDesc = String(inferredDesc).slice(0,800);
     if(Array.isArray(inf.goals_hint)){
       answers.goals = inf.goals_hint.filter(function(g){return VALID_GOALS.indexOf(g)!==-1;}).slice(0,4);
     }
@@ -1011,7 +1011,7 @@ function renderFreetextStep(s){
     <div class="step-meta"><span>${"QUESTION " + String(stepIndex+1).padStart(2,"0") + " / " + String(qCount).padStart(2,"0")}</span><span>${s.optional?'OPTIONAL · SKIPPABLE':'REQUIRED'}</span></div>
     <h2 class="q">${s.q}</h2>
     <p class="qsub">${s.sub||''}</p>
-    <textarea class="freetextinput" id="freetextInput" rows="3" maxlength="${maxLen}"
+    <textarea class="freetextinput" id="freetextInput" rows="${s.rows||3}" maxlength="${maxLen}"
       placeholder="${esc(s.placeholder||'')}"
       oninput="onFreetextInput('${s.key}', this.value)">${esc(current)}</textarea>
     <div class="freetextcount" id="freetextCount">${current.length} / ${maxLen}</div>
