@@ -4,6 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Your Stack — RightStack</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#6c6cf5">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RightStack">
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -34,6 +41,35 @@
   .hero h1{font-size:36px;letter-spacing:-.02em;margin:6px 0 8px}
   .hero p{color:var(--muted);font-size:16px;line-height:1.55;margin:0;max-width:60ch}
   .hero .meta{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;margin-bottom:4px}
+  .hero p b{color:var(--ink)}
+  /* glance stats row inside hero */
+  .glance{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:22px}
+  @media(max-width:680px){.glance{grid-template-columns:repeat(2,1fr)}}
+  .glanceitem{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:14px 16px}
+  .glanceitem .gn{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--ink);line-height:1}
+  .glanceitem .gl{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;margin-top:6px;font-weight:600}
+  /* covered + gaps highlight row */
+  .hl-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px;background:transparent;border:none;padding:0}
+  @media(max-width:680px){.hl-row{grid-template-columns:1fr}}
+  .hl{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+  .hl .hlh{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--green);text-transform:uppercase;margin-bottom:10px;font-weight:700}
+  .hl.gap-hl .hlh{color:var(--amber)}
+  .hl .hlpills{display:flex;flex-wrap:wrap;gap:6px}
+  .pill.gap{background:var(--amberSoft);color:var(--amber);border:1px solid rgba(245,158,11,.25)}
+  .pill.subtle{background:rgba(255,255,255,.05);color:var(--muted)}
+  .pill.custom-pill{background:rgba(108,108,245,.15);color:#cdc9ff;font-weight:600}
+  /* owned tool rows */
+  .ownedlist{display:grid;gap:10px}
+  .ownedrow{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:var(--panel2);border:1px solid var(--line);border-radius:11px}
+  .ownedrow.custom{border-style:dashed}
+  .ownedrow .av{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex:0 0 auto}
+  .ownedbody{flex:1;min-width:0}
+  .ownedname{font-weight:700;font-size:15px;color:var(--ink);margin-bottom:5px}
+  .ownedctx{color:#cbcfe1;font-size:13px;line-height:1.55;margin-bottom:8px}
+  .ownedmeta{display:flex;gap:6px;flex-wrap:wrap}
+  /* "Why this matters for you" lead line on new-in-area cards */
+  .whymatters{color:var(--ink);font-weight:500;font-size:13.5px;line-height:1.55;padding:9px 11px;background:rgba(108,108,245,.07);border-left:2px solid var(--indigo);border-radius:6px;margin:8px 0}
+  .whymatters.loading{color:var(--muted);font-style:italic;font-weight:400;background:rgba(255,255,255,.03);border-left-color:rgba(255,255,255,.1)}
 
   /* grid layout */
   .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
@@ -62,6 +98,11 @@
   .toolrow .try{align-self:center;text-decoration:none;background:#fff;color:#0b0c14;font-weight:700;font-size:12.5px;padding:8px 12px;border-radius:8px;white-space:nowrap}
 
   .empty{color:var(--muted);font-size:14px;text-align:center;padding:24px;border:1px dashed var(--line2);border-radius:11px;line-height:1.55}
+  .actbtn{display:inline-block;background:linear-gradient(135deg,var(--indigo),var(--indigo2));color:#fff;border:none;border-radius:10px;padding:11px 18px;font-weight:600;font-size:14px;cursor:pointer;font-family:var(--grot)}
+  .actbtn:hover{filter:brightness(1.08)}
+  .ghostbtn{display:inline-block;background:transparent;color:var(--muted);border:1px solid var(--line2);border-radius:10px;padding:9px 14px;font-weight:600;font-size:13.5px;cursor:pointer;font-family:var(--grot)}
+  .ghostbtn:hover{color:var(--ink);border-color:var(--ink)}
+  .pp.on{display:inline-block;font-family:var(--mono);font-size:10.5px;color:var(--green);background:var(--greenSoft);padding:3px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.1em;margin-left:6px;vertical-align:middle;font-weight:700}
 
   /* watching */
   .watching{display:grid;gap:10px}
@@ -103,9 +144,11 @@
 </div>
 
 <script src="catalog.js"></script>
+<script src="scoring.js"></script>
 <script>
 const SUPABASE_URL = "https://mofrmrhjecsshdrkhvhq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_escMY33Wj0O5ZcHi-9vWtA_RC6vQV8B";
+const VAPID_PUBLIC_KEY = "BLW66yhccpKCBnUPH-2ZOf-qvCV1qDizAMDw0dqh14FprtrSfRaBS-596itm510qIQGjPbkzmTgtfz1YHMrcEfI";
 
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
 
@@ -133,10 +176,111 @@ async function rpc(name, args){
   return res.json();
 }
 
+/* ===== Web push opt-in ===== */
+let SUB_EMAIL = "";   // populated when subscriber loads
+let PUSH_SUPPORTED = ("serviceWorker" in navigator) && ("PushManager" in window) && ("Notification" in window);
+let PUSH_STATE = "idle"; // 'idle' | 'enabled' | 'sending' | 'denied' | 'error'
+
+function urlBase64ToUint8Array(b64){
+  const padding = "=".repeat((4 - (b64.length % 4)) % 4);
+  const base64 = (b64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+async function checkPushState(){
+  if(!PUSH_SUPPORTED){ PUSH_STATE = "unsupported"; return; }
+  if(Notification.permission === "denied"){ PUSH_STATE = "denied"; return; }
+  try{
+    const reg = await navigator.serviceWorker.getRegistration();
+    if(!reg){ PUSH_STATE = "idle"; return; }
+    const sub = await reg.pushManager.getSubscription();
+    PUSH_STATE = sub ? "enabled" : "idle";
+  }catch(_e){ PUSH_STATE = "idle"; }
+}
+
+async function enablePush(){
+  if(!PUSH_SUPPORTED || !SUB_EMAIL){ return; }
+  PUSH_STATE = "sending"; renderPushCard();
+  try{
+    const perm = await Notification.requestPermission();
+    if(perm !== "granted"){ PUSH_STATE = "denied"; renderPushCard(); return; }
+    let reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const j = sub.toJSON();
+    await rpc("push_subscribe", {
+      p_email: SUB_EMAIL,
+      p_endpoint: j.endpoint,
+      p_p256dh: j.keys.p256dh,
+      p_auth: j.keys.auth,
+      p_user_agent: navigator.userAgent || null
+    });
+    PUSH_STATE = "enabled";
+  }catch(e){
+    console.warn("[RightStack] enablePush failed:", e);
+    PUSH_STATE = "error";
+  }
+  renderPushCard();
+}
+
+async function disablePush(){
+  if(!PUSH_SUPPORTED) return;
+  try{
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    if(sub){
+      const ep = sub.endpoint;
+      await sub.unsubscribe();
+      await rpc("push_unsubscribe", { p_endpoint: ep });
+    }
+    PUSH_STATE = "idle";
+  }catch(_e){ PUSH_STATE = "error"; }
+  renderPushCard();
+}
+
+function renderPushCard(){
+  const host = document.getElementById("pushCard");
+  if(!host) return;
+  if(PUSH_STATE === "unsupported"){
+    host.innerHTML = '<h2>Push notifications</h2>' +
+      '<p class="sub">Your browser doesn\'t support push notifications. Try Chrome, Firefox, or Edge on desktop; or install RightStack as an app on Android / iOS (Add to Home Screen).</p>';
+    return;
+  }
+  if(PUSH_STATE === "denied"){
+    host.innerHTML = '<h2>Push notifications</h2>' +
+      '<p class="sub">You blocked notifications for this site. To enable them, open your browser\'s site settings for rightstack.ai and allow notifications, then reload this page.</p>';
+    return;
+  }
+  if(PUSH_STATE === "enabled"){
+    host.innerHTML = '<h2>Push notifications <span class="pp on">On</span></h2>' +
+      '<p class="sub">We\'ll send a quick push when something in your areas moves — a strong-fit new tool, a major vendor update, or a switch you should know about. ~1–2 per month.</p>' +
+      '<button class="ghostbtn" onclick="disablePush()">Turn off</button>';
+    return;
+  }
+  if(PUSH_STATE === "sending"){
+    host.innerHTML = '<h2>Push notifications</h2>' +
+      '<p class="sub">Enabling…</p>';
+    return;
+  }
+  // idle / error
+  host.innerHTML = '<h2>Get notified when something moves</h2>' +
+    '<p class="sub">Add a push channel to this stack. We\'ll only notify you about strong-fit new tools, major changes to tools you use, and switches worth knowing about — never marketing.</p>' +
+    (PUSH_STATE === "error" ? '<p class="sub" style="color:var(--amber)">Something went wrong. Try again.</p>' : '') +
+    '<button class="actbtn" onclick="enablePush()">Enable push</button>';
+}
+
 async function fetchNewInArea(interests){
   if(!interests || !interests.length) return [];
   // Find recently-added tools that match any of the interest tags. Uses array overlap (&&).
-  const params = "select=id,name,category,tags,description,price,has_free_plan,url,site,is_new,added_at"
+  const params = "select=id,name,category,tags,description,long_desc,price,price_tier,has_free_plan,ease,sizes,url,site,is_new,added_at"
     +"&status=eq.published&order=added_at.desc&limit=8"
     +"&tags=ov.{"+interests.map(encodeURIComponent).join(",")+"}";
   const res = await fetch(SUPABASE_URL+"/rest/v1/tools?"+params,{
@@ -144,6 +288,72 @@ async function fetchNewInArea(interests){
   });
   if(!res.ok) return [];
   return res.json();
+}
+
+/* Call the personalize edge function with the subscriber's context to get
+   one tailored sentence per tool. Returns a map of {tool_id: sentence}. */
+async function fetchPersonalizedReasons(sub, tools){
+  if(!tools || !tools.length) return {};
+  const ctx = {
+    businessDesc: sub.business_desc || "",
+    industry: sub.industry || "",
+    size: sub.size || "",
+    goals: sub.goals || [],
+    teams: sub.teams || [],
+    stack_names: (sub.stack||[]).map(function(id){
+      const t = AI_TOOLS.find(function(x){return x.id===id;});
+      return t ? t.name : id;
+    }).concat(sub.stack_other||[])
+  };
+  // Skip if we have no business context to work with
+  if(!ctx.businessDesc || ctx.businessDesc.length < 10){
+    return {};
+  }
+  try{
+    const res = await fetch(SUPABASE_URL+"/functions/v1/personalize", {
+      method:"POST",
+      headers:{ apikey:SUPABASE_KEY, Authorization:"Bearer "+SUPABASE_KEY, "Content-Type":"application/json" },
+      body: JSON.stringify({
+        context: ctx,
+        tools: tools.map(function(t){
+          return { id: t.id, name: t.name, category: t.category, description: t.description || t.desc || "" };
+        }).slice(0, 12)
+      })
+    });
+    if(!res.ok) return {};
+    const j = await res.json();
+    return (j && j.reasons) ? j.reasons : {};
+  }catch(_e){ return {}; }
+}
+
+/* Stack-level intelligence. Counts, coverage, gaps, monthly cost estimate. */
+function computeStackStats(sub, ownedTools, stackOther){
+  const stats = {
+    total: ownedTools.length + stackOther.length,
+    freeCount: 0,
+    paidCount: 0,
+    categoriesCovered: new Set(),
+    interestCoverage: { covered: [], gaps: [] }
+  };
+  ownedTools.forEach(function(t){
+    if(t.hasFreePlan) stats.freeCount++; else stats.paidCount++;
+    (t.tags||[]).forEach(function(tag){ stats.categoriesCovered.add(tag); });
+  });
+  const interests = sub.interests || [];
+  const ownedTagSet = stats.categoriesCovered;
+  interests.forEach(function(tag){
+    if(ownedTagSet.has(tag)) stats.interestCoverage.covered.push(tag);
+    else stats.interestCoverage.gaps.push(tag);
+  });
+  return stats;
+}
+
+/* Turn a tag id (sales, marketing, etc.) into a human label using scoring.js. */
+function tagLabel(tag){
+  if(typeof USE_CASE_DOMAINS !== "undefined" && USE_CASE_DOMAINS[tag] && USE_CASE_DOMAINS[tag].label){
+    return USE_CASE_DOMAINS[tag].label;
+  }
+  return tag.charAt(0).toUpperCase() + tag.slice(1);
 }
 
 async function init(){
@@ -179,12 +389,14 @@ function showError(html){
 }
 
 async function render(sub){
+  SUB_EMAIL = sub.email || "";
+  await checkPushState();
   const interests = sub.interests || [];
   const stackIds = sub.stack || [];
   const stackOther = sub.stack_other || [];
   const ownedSet = new Set(stackIds);
 
-  // map stack ids → catalog tools
+  // map stack ids → catalog tools (preserve long_desc if catalog has it)
   const ownedTools = stackIds.map(function(id){
     return AI_TOOLS.find(function(t){return t.id===id;}) || {id:id, name:id, category:"(removed)"};
   });
@@ -196,35 +408,73 @@ async function render(sub){
     newInArea = newInArea.filter(function(t){ return !ownedSet.has(t.id); }).slice(0,6);
   }catch(e){ /* leave empty */ }
 
-  const stackHtml = (ownedTools.length || stackOther.length)
-    ? '<div class="stacklist">' +
-        ownedTools.map(function(t){ return '<span class="stackchip">'+esc(t.name)+'</span>'; }).join("") +
-        stackOther.map(function(n){ return '<span class="stackchip custom">'+esc(n)+'</span>'; }).join("") +
-      '</div>'
-    : '<div class="empty">You didn\'t share any tools at signup. Retake the assessment to update your stack — it\'s how we make these updates relevant.</div>';
+  // Stack-level intelligence: tool counts, coverage, gaps
+  const stats = computeStackStats(sub, ownedTools, stackOther);
+  const totalTools = stats.total;
+  const coveredHtml = stats.interestCoverage.covered.length
+    ? stats.interestCoverage.covered.map(function(t){ return '<span class="pill">'+esc(tagLabel(t))+'</span>'; }).join("")
+    : '<span style="color:var(--muted);font-size:13px">none of your stated priorities yet</span>';
+  const gapsHtml = stats.interestCoverage.gaps.length
+    ? stats.interestCoverage.gaps.map(function(t){ return '<span class="pill gap">'+esc(tagLabel(t))+'</span>'; }).join("")
+    : '<span style="color:var(--green);font-size:13px;font-weight:600">all priorities covered ✓</span>';
 
-  const newHtml = newInArea.length
-    ? newInArea.map(function(t){
-        const tags = (t.tags||[]).filter(function(tag){return interests.indexOf(tag)!==-1;}).slice(0,2);
-        const tagPills = tags.map(function(g){return '<span class="pill">'+esc(g)+'</span>';}).join("");
-        const isNewPill = t.is_new ? '<span class="pill new">New</span>' : '';
-        const freePill = t.has_free_plan ? '<span class="pill free">Free plan</span>' : '';
-        const tryUrl = t.url || t.site || '#';
-        return '<div class="toolrow">'+
-          '<div class="av" style="background:'+avColor(t.name)+'">'+esc(initials(t.name).toUpperCase())+'</div>'+
-          '<div class="body">'+
-            '<div class="name">'+esc(t.name)+'</div>'+
-            '<div class="cat">'+esc(t.category||"")+' · added '+esc(fmtDate(t.added_at))+'</div>'+
-            '<div class="desc">'+esc(t.description||"")+'</div>'+
-            '<div class="row-tags">'+isNewPill+freePill+tagPills+'</div>'+
-          '</div>'+
-          '<a class="try" href="'+esc(tryUrl)+'" target="_blank" rel="noopener sponsored">Try →</a>'+
-        '</div>';
-      }).join("")
-    : '<div class="empty">All quiet in your areas right now — we\'ll surface things here as they emerge.</div>';
+  // OWNED TOOLS — each shown with what-it-does context (from long_desc).
+  const ownedRows = ownedTools.map(function(t){
+    const longCtx = (t.longDesc||t.long_desc||"").trim();
+    const ctxLine = longCtx ? longCtx.split(/(?<=\.)\s+/)[0].slice(0, 220) : (t.desc || t.description || "");
+    const tags = (t.tags||[]).slice(0,2).map(function(g){return '<span class="pill subtle">'+esc(tagLabel(g))+'</span>';}).join("");
+    return '<div class="ownedrow">'+
+      '<div class="av" style="background:'+avColor(t.name)+'">'+esc(initials(t.name).toUpperCase())+'</div>'+
+      '<div class="ownedbody">'+
+        '<div class="ownedname">'+esc(t.name)+(t.hasFreePlan?' <span class="pill free">Free plan</span>':'')+'</div>'+
+        '<div class="ownedctx">'+esc(ctxLine||"In your stack — no context yet")+'</div>'+
+        '<div class="ownedmeta">'+tags+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join("");
+  const customRows = stackOther.map(function(n){
+    return '<div class="ownedrow custom">'+
+      '<div class="av" style="background:rgba(255,255,255,.07);color:var(--muted)">+</div>'+
+      '<div class="ownedbody">'+
+        '<div class="ownedname">'+esc(n)+' <span class="pill custom-pill">Custom</span></div>'+
+        '<div class="ownedctx">You added this manually. We don\'t have catalog context for it yet.</div>'+
+      '</div>'+
+    '</div>';
+  }).join("");
+  const stackHtml = (ownedTools.length || stackOther.length)
+    ? '<div class="ownedlist">'+ownedRows+customRows+'</div>'
+    : '<div class="empty">You didn\'t share any tools at signup. <a href="/" style="color:var(--indigo2)">Retake the assessment</a> to update your stack.</div>';
+
+  // NEW IN YOUR AREAS — each gets a personalized "why this matters" once reasons load.
+  function renderNewCards(reasonMap){
+    return newInArea.length
+      ? newInArea.map(function(t){
+          const tags = (t.tags||[]).filter(function(tag){return interests.indexOf(tag)!==-1;}).slice(0,2);
+          const tagPills = tags.map(function(g){return '<span class="pill">'+esc(tagLabel(g))+'</span>';}).join("");
+          const isNewPill = t.is_new ? '<span class="pill new">New</span>' : '';
+          const freePill = t.has_free_plan ? '<span class="pill free">Free plan</span>' : '';
+          const tryUrl = t.url || t.site || '#';
+          const personalReason = reasonMap && reasonMap[t.id];
+          const reasonHtml = personalReason
+            ? '<div class="whymatters">'+esc(personalReason)+'</div>'
+            : (reasonMap === null ? '<div class="whymatters loading">Reading this one for your business…</div>' : '');
+          return '<div class="toolrow">'+
+            '<div class="av" style="background:'+avColor(t.name)+'">'+esc(initials(t.name).toUpperCase())+'</div>'+
+            '<div class="body">'+
+              '<div class="name">'+esc(t.name)+'</div>'+
+              '<div class="cat">'+esc(t.category||"")+' · added '+esc(fmtDate(t.added_at))+'</div>'+
+              reasonHtml +
+              '<div class="desc">'+esc(t.description||"")+'</div>'+
+              '<div class="row-tags">'+isNewPill+freePill+tagPills+'</div>'+
+            '</div>'+
+            '<a class="try" href="'+esc(tryUrl)+'" target="_blank" rel="noopener sponsored">Try →</a>'+
+          '</div>';
+        }).join("")
+      : '<div class="empty">All quiet in your areas right now — we\'ll surface things here as they emerge.</div>';
+  }
 
   const interestPills = interests.length
-    ? interests.map(function(t){return '<span class="pill">'+esc(t)+'</span>';}).join(" ")
+    ? interests.map(function(t){return '<span class="pill">'+esc(tagLabel(t))+'</span>';}).join(" ")
     : '<span class="pill">general</span>';
 
   const watchingHtml = '<div class="watching">'+
@@ -233,36 +483,74 @@ async function render(sub){
     '<div class="watchrow"><div class="dot"></div><div><div class="what">Better-fit alternatives emerging</div><div class="why">When a new entrant out-scores something in your stack, you&apos;ll hear it.</div></div></div>'+
     '</div>';
 
+  // Build the dashboard with the loading state for new-card reasons.
   document.getElementById("loading").style.display="none";
   document.getElementById("content").style.display="block";
   document.getElementById("content").innerHTML =
     '<div class="hero">'+
-      '<div class="meta">Updated '+esc(fmtDate(sub.last_active_at))+'</div>'+
-      '<h1>Hello, '+esc(sub.email)+'</h1>'+
-      '<p>This page stays in sync with the AI market — your existing stack on the left, what to keep watching on the right. Bookmark it.</p>'+
+      '<div class="meta">Updated '+esc(fmtDate(sub.last_active_at))+' · '+esc(sub.email)+'</div>'+
+      '<h1>Your stack — managed.</h1>'+
+      '<p>'+(totalTools>0 ? ('You\'re tracking <b>'+totalTools+' tool'+(totalTools===1?'':'s')+'</b>. Here\'s what they do for your business, what gaps remain, and what\'s new worth your attention.') : 'You haven\'t added any tools yet. <a href="/" style="color:var(--indigo2)">Retake the assessment</a> to set up your stack.')+'</p>'+
+      (totalTools>0
+        ? ('<div class="glance">'+
+            '<div class="glanceitem"><div class="gn">'+stats.total+'</div><div class="gl">tools tracked</div></div>'+
+            '<div class="glanceitem"><div class="gn">'+stats.freeCount+'</div><div class="gl">on free plan</div></div>'+
+            '<div class="glanceitem"><div class="gn">'+stats.categoriesCovered.size+'</div><div class="gl">categories covered</div></div>'+
+            '<div class="glanceitem"><div class="gn">'+stats.interestCoverage.gaps.length+'</div><div class="gl">priority gaps</div></div>'+
+          '</div>')
+        : '') +
     '</div>'+
+
+    (totalTools>0
+      ? ('<div class="card hl-row">'+
+          '<div class="hl">'+
+            '<div class="hlh">What\'s covered</div>'+
+            '<div class="hlpills">'+coveredHtml+'</div>'+
+          '</div>'+
+          '<div class="hl gap-hl">'+
+            '<div class="hlh">Where you\'re light</div>'+
+            '<div class="hlpills">'+gapsHtml+'</div>'+
+          '</div>'+
+        '</div>')
+      : '') +
 
     '<div class="grid">'+
       '<div>'+
         '<div class="card">'+
-          '<h2>What you use today</h2>'+
-          '<p class="sub">The '+(ownedTools.length+stackOther.length)+' tool'+((ownedTools.length+stackOther.length)===1?'':'s')+' you told us about. Keep this current — retake the assessment any time to update.</p>'+
+          '<h2>Your stack — what each tool does for you</h2>'+
+          '<p class="sub">'+(ownedTools.length+stackOther.length)+' tool'+((ownedTools.length+stackOther.length)===1?'':'s')+' on file. Click any to see deeper context. Keep this current — retake the assessment any time to update.</p>'+
           stackHtml+
         '</div>'+
         '<div class="card" style="margin-top:18px">'+
-          '<h2>New in your areas</h2>'+
-          '<p class="sub">Recently-added tools matching your priorities: '+interestPills+'</p>'+
-          newHtml+
+          '<h2>New in your areas — and why they matter</h2>'+
+          '<p class="sub">Tools recently added to our catalog that touch your priorities: '+interestPills+'</p>'+
+          '<div id="newInAreaList">'+renderNewCards(null)+'</div>'+
         '</div>'+
       '</div>'+
       '<div>'+
-        '<div class="card">'+
+        '<div class="card" id="pushCard"></div>'+
+        '<div class="card" style="margin-top:18px">'+
           '<h2>We\'re watching for you</h2>'+
           '<p class="sub">What this page tracks on your behalf.</p>'+
           watchingHtml+
         '</div>'+
       '</div>'+
     '</div>';
+  renderPushCard();
+
+  // Personalized "why this matters" — async; injects into the new-area list when ready.
+  if(newInArea.length && sub.business_desc){
+    fetchPersonalizedReasons(sub, newInArea).then(function(reasons){
+      const host = document.getElementById("newInAreaList");
+      if(host) host.innerHTML = renderNewCards(reasons || {});
+    }).catch(function(){
+      const host = document.getElementById("newInAreaList");
+      if(host) host.innerHTML = renderNewCards({});  // remove the loading state
+    });
+  } else {
+    const host = document.getElementById("newInAreaList");
+    if(host) host.innerHTML = renderNewCards({});  // remove the loading state immediately
+  }
 }
 
 init();
