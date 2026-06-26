@@ -326,26 +326,69 @@ async function fetchPersonalizedReasons(sub, tools){
   }catch(_e){ return {}; }
 }
 
-/* Stack-level intelligence. Counts, coverage, gaps, monthly cost estimate. */
+/* Stack-level intelligence. Counts, coverage, and gaps derived from declared
+   TEAMS (an explicit operational reality), not from the inferred interests
+   array (which conflates goals like "reduce costs" with category labels
+   like "finance"). Teams = "we have a marketing team" → "marketing tools
+   expected." That's defensible. Goals are too abstract for a gap call. */
 function computeStackStats(sub, ownedTools, stackOther){
   const stats = {
     total: ownedTools.length + stackOther.length,
     freeCount: 0,
     paidCount: 0,
     categoriesCovered: new Set(),
+    teamExpected: new Set(),
+    hasDeclaredTeams: (sub.teams||[]).length > 0,
     interestCoverage: { covered: [], gaps: [] }
   };
   ownedTools.forEach(function(t){
     if(t.hasFreePlan) stats.freeCount++; else stats.paidCount++;
     (t.tags||[]).forEach(function(tag){ stats.categoriesCovered.add(tag); });
   });
-  const interests = sub.interests || [];
-  const ownedTagSet = stats.categoriesCovered;
-  interests.forEach(function(tag){
-    if(ownedTagSet.has(tag)) stats.interestCoverage.covered.push(tag);
-    else stats.interestCoverage.gaps.push(tag);
+  if(typeof TEAM_TO_DOMAINS !== "undefined"){
+    (sub.teams||[]).forEach(function(t){
+      (TEAM_TO_DOMAINS[t]||[]).forEach(function(d){ stats.teamExpected.add(d); });
+    });
+  }
+  stats.teamExpected.forEach(function(d){
+    if(stats.categoriesCovered.has(d)) stats.interestCoverage.covered.push(d);
+    else stats.interestCoverage.gaps.push(d);
   });
   return stats;
+}
+
+/* Slugify name → catalog-id-friendly form. Matches what extract_stack uses. */
+function slugify(s){ return String(s||"").toLowerCase().trim().replace(/[^a-z0-9]+/g, ""); }
+
+/* Find any free-text entries in stack_other that actually match a catalog
+   tool by id, exact name, or slug. Returns the IDs we should add to ownedTools
+   plus the names that genuinely have no catalog match. Fixes the Klaviyo bug. */
+function reconcileCustomTools(stackOther, currentStackIds){
+  const byId = {};
+  const byNameLower = {};
+  const bySlug = {};
+  AI_TOOLS.forEach(function(t){
+    byId[t.id] = t.id;
+    byNameLower[(t.name||"").toLowerCase().trim()] = t.id;
+    bySlug[slugify(t.name)] = t.id;
+  });
+  const ownedSet = {};
+  (currentStackIds||[]).forEach(function(id){ ownedSet[id] = true; });
+  const promotedIds = [];
+  const remaining = [];
+  (stackOther||[]).forEach(function(name){
+    const n = String(name||"").trim();
+    if(!n) return;
+    const low = n.toLowerCase();
+    const slug = slugify(n);
+    const hit = byId[slug] || byNameLower[low] || bySlug[slug];
+    if(hit && !ownedSet[hit] && promotedIds.indexOf(hit) === -1){
+      promotedIds.push(hit);
+    } else if(!hit){
+      remaining.push(n);
+    }
+  });
+  return { promotedIds: promotedIds, remaining: remaining };
 }
 
 /* Turn a tag id (sales, marketing, etc.) into a human label using scoring.js. */
@@ -396,8 +439,14 @@ async function render(sub){
   const stackOther = sub.stack_other || [];
   const ownedSet = new Set(stackIds);
 
+  // Reconcile any free-text entries that actually match the catalog by name/slug.
+  // This fixes the "Klaviyo shows as custom because it was added as text earlier" bug.
+  const reconciled = reconcileCustomTools(stackOther, stackIds);
+  const effectiveStackIds = stackIds.concat(reconciled.promotedIds);
+  const effectiveStackOther = reconciled.remaining;
+
   // map stack ids → catalog tools (preserve long_desc if catalog has it)
-  const ownedTools = stackIds.map(function(id){
+  const ownedTools = effectiveStackIds.map(function(id){
     return AI_TOOLS.find(function(t){return t.id===id;}) || {id:id, name:id, category:"(removed)"};
   });
 
@@ -408,8 +457,8 @@ async function render(sub){
     newInArea = newInArea.filter(function(t){ return !ownedSet.has(t.id); }).slice(0,6);
   }catch(e){ /* leave empty */ }
 
-  // Stack-level intelligence: tool counts, coverage, gaps
-  const stats = computeStackStats(sub, ownedTools, stackOther);
+  // Stack-level intelligence: tool counts, coverage, gaps (using effective set)
+  const stats = computeStackStats(sub, ownedTools, effectiveStackOther);
   const totalTools = stats.total;
   const coveredHtml = stats.interestCoverage.covered.length
     ? stats.interestCoverage.covered.map(function(t){ return '<span class="pill">'+esc(tagLabel(t))+'</span>'; }).join("")
@@ -432,7 +481,7 @@ async function render(sub){
       '</div>'+
     '</div>';
   }).join("");
-  const customRows = stackOther.map(function(n){
+  const customRows = effectiveStackOther.map(function(n){
     return '<div class="ownedrow custom">'+
       '<div class="av" style="background:rgba(255,255,255,.07);color:var(--muted)">+</div>'+
       '<div class="ownedbody">'+
@@ -441,7 +490,7 @@ async function render(sub){
       '</div>'+
     '</div>';
   }).join("");
-  const stackHtml = (ownedTools.length || stackOther.length)
+  const stackHtml = (ownedTools.length || effectiveStackOther.length)
     ? '<div class="ownedlist">'+ownedRows+customRows+'</div>'
     : '<div class="empty">You didn\'t share any tools at signup. <a href="/" style="color:var(--indigo2)">Retake the assessment</a> to update your stack.</div>';
 
@@ -496,19 +545,19 @@ async function render(sub){
             '<div class="glanceitem"><div class="gn">'+stats.total+'</div><div class="gl">tools tracked</div></div>'+
             '<div class="glanceitem"><div class="gn">'+stats.freeCount+'</div><div class="gl">on free plan</div></div>'+
             '<div class="glanceitem"><div class="gn">'+stats.categoriesCovered.size+'</div><div class="gl">categories covered</div></div>'+
-            '<div class="glanceitem"><div class="gn">'+stats.interestCoverage.gaps.length+'</div><div class="gl">priority gaps</div></div>'+
+            '<div class="glanceitem"><div class="gn">'+stats.interestCoverage.gaps.length+'</div><div class="gl">team gaps</div></div>'+
           '</div>')
         : '') +
     '</div>'+
 
-    (totalTools>0
+    (totalTools>0 && stats.hasDeclaredTeams
       ? ('<div class="card hl-row">'+
           '<div class="hl">'+
-            '<div class="hlh">What\'s covered</div>'+
+            '<div class="hlh">Your teams — covered</div>'+
             '<div class="hlpills">'+coveredHtml+'</div>'+
           '</div>'+
           '<div class="hl gap-hl">'+
-            '<div class="hlh">Where you\'re light</div>'+
+            '<div class="hlh">Your teams — no tool yet</div>'+
             '<div class="hlpills">'+gapsHtml+'</div>'+
           '</div>'+
         '</div>')
