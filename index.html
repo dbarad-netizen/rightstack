@@ -1,0 +1,1420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PortCo AI Roadmap — Prototype</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --indigo: #4f46e5;
+    --indigo-dark: #3730a3;
+    --indigo-light: #eef2ff;
+    --indigo-border: #c7d2fe;
+    --text: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --bg: #f9fafb;
+    --card: #ffffff;
+    --good: #059669;
+    --warn: #d97706;
+    --bad: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: var(--text); background: var(--bg); font-size: 14px; line-height: 1.5; }
+  h1, h2, h3, h4 { margin: 0 0 8px 0; font-weight: 700; color: var(--indigo-dark); }
+  h1 { font-size: 22px; }
+  h2 { font-size: 18px; color: var(--indigo); }
+  h3 { font-size: 15px; }
+  a { color: var(--indigo); text-decoration: none; }
+  button { font: inherit; cursor: pointer; }
+  input, select, textarea { font: inherit; color: inherit; }
+
+  #app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+  aside { background: var(--card); border-right: 1px solid var(--line); padding: 20px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+  aside .brand { padding: 0 20px 20px 20px; border-bottom: 1px solid var(--line); }
+  aside .brand .logo { display: flex; align-items: center; gap: 10px; }
+  aside .brand .dot { width: 24px; height: 24px; background: var(--indigo); border-radius: 6px; }
+  aside .brand .name { font-weight: 700; color: var(--indigo-dark); }
+  aside .brand .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  aside nav { padding: 12px 0; flex: 1; }
+  aside nav a { display: block; padding: 10px 20px; color: var(--text); border-left: 3px solid transparent; font-weight: 500; cursor: pointer; }
+  aside nav a:hover { background: var(--indigo-light); }
+  aside nav a.active { background: var(--indigo-light); border-left-color: var(--indigo); color: var(--indigo-dark); }
+  aside nav .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 12px 20px 4px 20px; font-weight: 600; }
+
+  aside .settings-row { padding: 12px 20px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  aside .settings-row .ai-status { display: flex; align-items: center; gap: 6px; }
+  aside .settings-row .ai-status .dot-live { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+  aside .settings-row .ai-status .dot-mock { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  aside .settings-row .gear { cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+  aside .settings-row .gear:hover { background: var(--indigo-light); color: var(--indigo); }
+
+  main { padding: 28px 36px; max-width: 1200px; }
+  .page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .page-header .title h1 { margin-bottom: 4px; }
+  .page-header .title .breadcrumb { color: var(--muted); font-size: 12px; }
+  .page-header .actions { display: flex; gap: 8px; }
+
+  .btn { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: white; font-weight: 500; color: var(--text); }
+  .btn:hover { border-color: var(--indigo); color: var(--indigo); }
+  .btn.primary { background: var(--indigo); border-color: var(--indigo); color: white; }
+  .btn.primary:hover { background: var(--indigo-dark); color: white; }
+  .btn.small { padding: 4px 10px; font-size: 12px; }
+  .btn.danger:hover { color: var(--bad); border-color: var(--bad); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { margin-top: 0; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+  .stat .value { font-size: 22px; font-weight: 700; color: var(--indigo-dark); margin-top: 4px; }
+  .stat .delta { font-size: 12px; color: var(--good); margin-top: 4px; }
+  .stat .delta.neg { color: var(--bad); }
+  .stat .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field select, .field textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: white; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+  .field.inline { display: flex; align-items: center; gap: 8px; }
+  .field.inline label { margin: 0; min-width: 120px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  table th { text-align: left; padding: 10px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--line); font-weight: 600; }
+  table td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table tr:hover { background: var(--indigo-light); cursor: pointer; }
+  table tr.selected { background: var(--indigo-light); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: var(--indigo-light); color: var(--indigo-dark); }
+  .badge.gray { background: #f3f4f6; color: var(--muted); }
+  .badge.good { background: #d1fae5; color: var(--good); }
+  .badge.warn { background: #fef3c7; color: var(--warn); }
+  .badge.bad { background: #fee2e2; color: var(--bad); }
+
+  .portco-card { cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s; }
+  .portco-card:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); border-color: var(--indigo); }
+  .portco-card .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .portco-card .head h3 { margin: 0; color: var(--indigo-dark); }
+  .portco-card .head .sector { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .portco-card .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px; }
+  .portco-card .metrics .m .l { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .portco-card .metrics .m .v { font-weight: 700; color: var(--text); font-size: 15px; margin-top: 2px; }
+  .portco-card .opps-summary { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; font-size: 12px; }
+  .portco-card .ev-hero { color: var(--good); font-weight: 700; }
+
+  .opp-row td { vertical-align: top; }
+  .opp-row .title-cell { font-weight: 600; color: var(--text); }
+  .opp-row .desc { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .opp-row .impact-cell { font-weight: 700; color: var(--good); }
+  .opp-row .ev-cell { font-weight: 700; color: var(--indigo-dark); }
+
+  .opp-editor { background: var(--indigo-light); border: 1px solid var(--indigo-border); border-radius: 8px; padding: 16px; margin: 12px 0; }
+  .opp-editor .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items: end; }
+  .opp-editor .full { grid-column: 1 / -1; }
+
+  .waterfall-legend { display: flex; gap: 20px; font-size: 12px; margin-top: 12px; }
+  .waterfall-legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
+
+  .report-section { border-top: 4px solid var(--indigo); background: white; padding: 24px; margin-bottom: 16px; border-radius: 0 0 10px 10px; }
+  .report-section h2 { color: var(--indigo-dark); margin-bottom: 8px; }
+  .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .report-header .brand-mark { font-weight: 700; color: var(--indigo); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty h3 { color: var(--muted); }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--indigo-border); border-top-color: var(--indigo); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .callout { background: linear-gradient(135deg, var(--indigo) 0%, var(--indigo-dark) 100%); color: white; border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; }
+  .callout h2 { color: white; margin-bottom: 8px; }
+  .callout .big { font-size: 32px; font-weight: 800; }
+  .callout .sub { opacity: 0.85; font-size: 13px; margin-top: 4px; }
+  .callout .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.2); }
+  .callout .grid .l { opacity: 0.75; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .callout .grid .v { font-weight: 700; font-size: 18px; margin-top: 4px; }
+
+  /* Score selector */
+  .score-row { display: grid; grid-template-columns: 200px 200px 1fr; gap: 16px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .score-row:last-child { border-bottom: none; }
+  .score-row .dim { font-weight: 600; color: var(--text); }
+  .score-row .dim .sub { font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+  .score-pills { display: flex; gap: 4px; }
+  .score-pill { padding: 6px 0; width: 32px; text-align: center; border-radius: 6px; border: 1px solid var(--line); background: white; cursor: pointer; font-weight: 700; color: var(--muted); font-size: 13px; }
+  .score-pill:hover { border-color: var(--indigo); color: var(--indigo); }
+  .score-pill.selected { background: var(--indigo); color: white; border-color: var(--indigo); }
+  .score-pill.selected.low { background: var(--bad); border-color: var(--bad); }
+  .score-pill.selected.mid { background: var(--warn); border-color: var(--warn); }
+  .score-pill.selected.high { background: var(--good); border-color: var(--good); }
+  .score-notes { width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; min-height: 40px; }
+
+  .verdict-banner { padding: 16px 20px; border-radius: 10px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .verdict-banner.strong { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+  .verdict-banner.solid { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .verdict-banner.cautious { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .verdict-banner.risk { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  .verdict-banner .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; opacity: 0.8; }
+  .verdict-banner .verdict { font-size: 20px; font-weight: 800; margin-top: 2px; }
+  .verdict-banner .score-box { text-align: right; }
+  .verdict-banner .score-box .l { font-size: 10px; text-transform: uppercase; opacity: 0.8; font-weight: 700; }
+  .verdict-banner .score-box .v { font-size: 32px; font-weight: 800; line-height: 1; }
+  .verdict-banner .score-box .max { font-size: 14px; opacity: 0.7; }
+
+  .risk-list { list-style: none; padding: 0; }
+  .risk-list li { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
+  .risk-list li:last-child { border-bottom: none; }
+  .risk-list li .flag { color: var(--bad); font-weight: 700; margin-top: 2px; }
+  .risk-list li input { flex: 1; border: none; padding: 6px 8px; border-radius: 4px; background: transparent; }
+  .risk-list li input:focus { background: var(--indigo-light); outline: none; }
+  .risk-list li button { background: transparent; border: none; color: var(--muted); cursor: pointer; }
+
+  /* Modal */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.5); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .modal { background: white; border-radius: 12px; padding: 28px; max-width: 500px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
+  .modal h2 { margin-bottom: 4px; }
+  .modal .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .modal .field { margin-bottom: 16px; }
+  .modal .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+  .modal .actions .left { display: flex; gap: 8px; }
+  .modal .status { padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 16px; }
+  .modal .status.on { background: #d1fae5; color: var(--good); }
+  .modal .status.off { background: #f3f4f6; color: var(--muted); }
+
+  @media print {
+    aside, .no-print { display: none; }
+    #app { grid-template-columns: 1fr; }
+    main { padding: 0; max-width: none; }
+    .card, .report-section { break-inside: avoid; box-shadow: none; }
+    body { background: white; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside>
+    <div class="brand">
+      <div class="logo"><div class="dot"></div><div><div class="name">PortCo AI Roadmap</div><div class="sub">Prototype · v0.2</div></div></div>
+    </div>
+    <nav>
+      <div class="section-label">Value Creation</div>
+      <a data-tab="firm">PE Firm</a>
+      <a data-tab="portfolio">Portfolio</a>
+      <a data-tab="opportunities">Opportunities</a>
+      <a data-tab="report">Executive Report</a>
+      <div class="section-label">Diligence</div>
+      <a data-tab="diligence">Deal Pipeline</a>
+      <a data-tab="scorecard">Diligence Scorecard</a>
+    </nav>
+    <div class="settings-row">
+      <div class="ai-status" id="ai-status-indicator"></div>
+      <div class="gear" onclick="openSettings()">⚙︎ Settings</div>
+    </div>
+  </aside>
+  <main id="main"></main>
+</div>
+<div id="modal-mount"></div>
+
+<script>
+/* ---------- STATE ---------- */
+const CATEGORIES = [
+  { id: "sales", label: "Sales & GTM" },
+  { id: "marketing", label: "Marketing" },
+  { id: "support", label: "Customer Support" },
+  { id: "ops", label: "Operations" },
+  { id: "finance", label: "Finance & Back Office" },
+  { id: "product", label: "Product & Engineering" },
+  { id: "hr", label: "HR & Talent" },
+];
+
+const DILIGENCE_DIMS = [
+  { id: "aiMaturity", label: "AI Maturity Today", sub: "How much AI is already deployed, at what depth" },
+  { id: "opportunitySize", label: "AI Opportunity Size", sub: "How much value is realistically unlockable with AI" },
+  { id: "techFoundation", label: "Tech Foundation", sub: "Are systems modern enough to layer AI on top of" },
+  { id: "talent", label: "Talent & Capability", sub: "Does the team have the people to execute" },
+  { id: "dataReadiness", label: "Data Readiness", sub: "Data quality, accessibility, governance" },
+  { id: "competitivePosition", label: "Competitive AI Position", sub: "Are competitors moving faster, slower, or not at all" },
+];
+
+const SAMPLE = {
+  firm: {
+    name: "Blackfin Growth Partners",
+    aum: 800, vintage: 2023, holdYears: 5,
+    focus: "Vertical SaaS · Business Services · DTC Consumer",
+    avgExitMultiple: 11,
+  },
+  portcos: [
+    { id: "meridian", name: "Meridian SaaS", sector: "Vertical SaaS (Legal Ops)", revenue: 18.0, ebitda: 3.0, employees: 45, aiMaturity: "Emerging", exitMultiple: 12, notes: "Series B growth-stage SaaS. Strong retention, weak sales productivity. New CRO joined 8 months ago.",
+      opportunities: [
+        { id:"m1", title:"AI SDR & pipeline generation", category:"sales", desc:"Deploy an AI-native SDR layer to 3x outbound volume without adding headcount. Frees existing SDRs to focus on qualified conversations.", ebitdaImpact:0.42, effortWeeks:10, confidence:0.7, timeToImpact:6 },
+        { id:"m2", title:"Customer support deflection copilot", category:"support", desc:"Tier-1 ticket deflection via AI agent trained on documentation and past resolutions. Target 40% deflection on ~1,200 monthly tickets.", ebitdaImpact:0.28, effortWeeks:8, confidence:0.8, timeToImpact:5 },
+        { id:"m3", title:"AI-augmented engineering", category:"product", desc:"Roll out Copilot + Claude Code across engineering. Track velocity via story points/week. Target 20% shipping-speed improvement.", ebitdaImpact:0.35, effortWeeks:4, confidence:0.65, timeToImpact:3 },
+        { id:"m4", title:"Auto-generated onboarding & training", category:"marketing", desc:"Replace static docs with AI-generated walkthroughs personalized per customer configuration. Reduce time-to-value and cut CS onboarding hours.", ebitdaImpact:0.15, effortWeeks:6, confidence:0.55, timeToImpact:6 },
+        { id:"m5", title:"AI churn prediction & save motion", category:"sales", desc:"Model at-risk accounts on product usage + support signal. Trigger AI-drafted CS outreach on 60-day at-risk window. Save 1.5 points of gross churn.", ebitdaImpact:0.55, effortWeeks:12, confidence:0.6, timeToImpact:9 },
+      ]
+    },
+    { id: "coastpath", name: "CoastPath Services", sector: "B2B Field Services", revenue: 42.0, ebitda: 6.0, employees: 180, aiMaturity: "None", exitMultiple: 8, notes: "Roll-up of 4 regional field-service brands. Common ERP still being rolled out. Big opportunity in dispatch and quoting.",
+      opportunities: [
+        { id:"c1", title:"AI-generated quoting from site photos", category:"sales", desc:"Field-tech uploads photos + notes; AI generates a customer-ready quote in minutes. Cut quote cycle from 3 days to 20 minutes; win rate expected to lift 15%.", ebitdaImpact:0.95, effortWeeks:14, confidence:0.55, timeToImpact:8 },
+        { id:"c2", title:"Dispatch optimization copilot", category:"ops", desc:"AI-augmented route/dispatch across the 4 brands. Reduce drive time 12%, add 0.4 jobs/tech/day.", ebitdaImpact:0.72, effortWeeks:16, confidence:0.6, timeToImpact:9 },
+        { id:"c3", title:"Back-office AR automation", category:"finance", desc:"Automate invoice generation, dispute triage, and collections chase. Cut DSO by 8 days; reduce 1.5 FTE workload.", ebitdaImpact:0.28, effortWeeks:8, confidence:0.75, timeToImpact:5 },
+        { id:"c4", title:"Technician assistant (mobile AI)", category:"product", desc:"On-device AI helping technicians diagnose issues, look up parts, and generate service reports. Cut avg service call 18 minutes.", ebitdaImpact:0.45, effortWeeks:12, confidence:0.55, timeToImpact:8 },
+        { id:"c5", title:"Recruiting & onboarding AI", category:"hr", desc:"AI-driven top-of-funnel recruiting for skilled techs. Draft, schedule, and pre-screen. Fill open reqs 30% faster; offset 60% attrition.", ebitdaImpact:0.32, effortWeeks:10, confidence:0.5, timeToImpact:7 },
+      ]
+    },
+    { id: "riverstone", name: "RiverStone Retail", sector: "DTC Consumer (Home)", revenue: 67.0, ebitda: 8.0, employees: 95, aiMaturity: "Adopting", exitMultiple: 9, notes: "DTC home goods brand. Already using Klaviyo + Shopify. CMO piloted Jasper. Opportunity is in merchandising, personalization, and back-office scale.",
+      opportunities: [
+        { id:"r1", title:"AI merchandising & assortment planning", category:"ops", desc:"AI-driven SKU rationalization + assortment planning per channel. Reduce overstock by 22%, freeing working capital & lifting margin.", ebitdaImpact:0.85, effortWeeks:14, confidence:0.6, timeToImpact:8 },
+        { id:"r2", title:"1:1 personalization at email + on-site", category:"marketing", desc:"AI-generated personalized email content and landing pages per segment. Lift email revenue 18% (currently 34% of total).", ebitdaImpact:0.62, effortWeeks:10, confidence:0.7, timeToImpact:6 },
+        { id:"r3", title:"AI-first product content pipeline", category:"marketing", desc:"Replace $$$ creative agency retainer with in-house AI content pipeline (copy + imagery + video). Save $340K/yr and 2x asset volume.", ebitdaImpact:0.34, effortWeeks:6, confidence:0.85, timeToImpact:4 },
+        { id:"r4", title:"CX & returns AI (Zendesk copilot)", category:"support", desc:"Deflect 45% of contacts (mostly returns, WISMO). Cut CX headcount by 3 FTE while improving CSAT.", ebitdaImpact:0.38, effortWeeks:8, confidence:0.8, timeToImpact:5 },
+        { id:"r5", title:"Vendor & PO automation", category:"finance", desc:"AI-driven PO matching, vendor spend audit, and duplicate-payment prevention. One-time recovery + ongoing 0.5 FTE relief.", ebitdaImpact:0.22, effortWeeks:6, confidence:0.75, timeToImpact:4 },
+      ]
+    }
+  ],
+  diligence: [
+    {
+      id: "trailpoint", name: "TrailPoint Home Services", sector: "HVAC & Plumbing (roll-up)",
+      revenue: 85, ebitda: 14, employees: 340,
+      proposedPrice: 140, proposedMultiple: 10, targetHold: 5, targetExitMultiple: 11,
+      notes: "Roll-up of 6 regional HVAC/plumbing companies. Common ERP still being implemented. Owner-operator selling into GP; management team staying.",
+      scores: {
+        aiMaturity: { score: 1, notes: "Effectively zero AI in production. One CRM AI trial that fizzled." },
+        opportunitySize: { score: 5, notes: "Dispatch, quoting, tech productivity — three large levers, all untouched." },
+        techFoundation: { score: 2, notes: "ERP mid-rollout, uneven system quality across the 6 rolled-up brands." },
+        talent: { score: 2, notes: "No head of data or CTO. IT is outsourced. Post-close CTO hire likely required." },
+        dataReadiness: { score: 2, notes: "Fragmented data across old ERPs. 6-month cleanup needed before AI at scale." },
+        competitivePosition: { score: 4, notes: "Competitors in region are equally behind. Timing window is favorable." },
+      },
+      opportunities: [
+        { id:"t1", title:"AI-generated quoting from field photos", category:"sales", desc:"Same lever as CoastPath — cut quote cycle 90%, lift win rate 15%. Bigger revenue base here means bigger absolute impact.", ebitdaImpact:1.85, effortWeeks:14, confidence:0.6, timeToImpact:8 },
+        { id:"t2", title:"Dispatch & routing optimization", category:"ops", desc:"AI-augmented dispatch across the 6 brands. 12% drive-time reduction = 0.5 jobs/tech/day.", ebitdaImpact:1.40, effortWeeks:16, confidence:0.55, timeToImpact:9 },
+        { id:"t3", title:"Technician mobile assistant", category:"product", desc:"On-device AI for diagnosis, parts, service reports. Cut avg call by 15 minutes across 240 field techs.", ebitdaImpact:0.95, effortWeeks:12, confidence:0.5, timeToImpact:8 },
+        { id:"t4", title:"AR/collections automation", category:"finance", desc:"AI-driven invoice + collections chase. Cut DSO 10 days, reduce 2 FTE workload.", ebitdaImpact:0.45, effortWeeks:8, confidence:0.75, timeToImpact:5 },
+      ],
+      risks: [
+        "ERP rollout must complete before serious AI investment — 6+ month blocker",
+        "No dedicated data/tech leader; must hire before AI initiatives can be governed",
+        "Owner-operator legacy: 6 brands have inconsistent processes, will resist standardization"
+      ]
+    }
+  ]
+};
+
+const STORAGE_KEY = "portco-ai-roadmap-v2";
+const API_KEY_STORAGE = "portco-anthropic-key";
+const MODEL_STORAGE = "portco-anthropic-model";
+
+const state = load() || JSON.parse(JSON.stringify(SAMPLE));
+if (!state.diligence) state.diligence = JSON.parse(JSON.stringify(SAMPLE.diligence));
+
+let currentTab = "firm";
+let currentPortcoId = null;
+let currentDiligenceId = null;
+let editingOppId = null;
+let editingDilOppId = null;
+
+function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){} }
+function load() {
+  try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; }
+}
+function resetSample() {
+  if (!confirm("Reset to sample data? This will overwrite your edits.")) return;
+  Object.assign(state, JSON.parse(JSON.stringify(SAMPLE)));
+  state.diligence = JSON.parse(JSON.stringify(SAMPLE.diligence));
+  save();
+  render();
+}
+
+/* ---------- MATH ---------- */
+function fmtM(x) {
+  if (x === 0 || x === null || x === undefined) return "$0";
+  const abs = Math.abs(x);
+  if (abs >= 1000) return "$" + (x/1000).toFixed(1) + "B";
+  if (abs >= 1) return "$" + x.toFixed(1) + "M";
+  return "$" + (x*1000).toFixed(0) + "K";
+}
+function fmtPct(x) { return (x*100).toFixed(0) + "%"; }
+
+function portcoStats(p) {
+  const totalEBITDALift = p.opportunities.reduce((a, o) => a + (o.ebitdaImpact * o.confidence), 0);
+  const rawEBITDALift = p.opportunities.reduce((a, o) => a + o.ebitdaImpact, 0);
+  const evImpact = totalEBITDALift * p.exitMultiple;
+  const rawEVImpact = rawEBITDALift * p.exitMultiple;
+  const currentEV = p.ebitda * p.exitMultiple;
+  const newEBITDA = p.ebitda + totalEBITDALift;
+  const newEV = newEBITDA * p.exitMultiple;
+  const evLiftPct = currentEV > 0 ? evImpact / currentEV : 0;
+  return { totalEBITDALift, rawEBITDALift, evImpact, rawEVImpact, currentEV, newEBITDA, newEV, evLiftPct };
+}
+
+function portfolioStats() {
+  const totals = state.portcos.reduce((a, p) => {
+    const s = portcoStats(p);
+    return {
+      revenue: a.revenue + p.revenue,
+      ebitda: a.ebitda + p.ebitda,
+      currentEV: a.currentEV + s.currentEV,
+      ebitdaLift: a.ebitdaLift + s.totalEBITDALift,
+      rawEbitdaLift: a.rawEbitdaLift + s.rawEBITDALift,
+      evImpact: a.evImpact + s.evImpact,
+      rawEvImpact: a.rawEvImpact + s.rawEVImpact,
+      newEV: a.newEV + s.newEV,
+      oppsCount: a.oppsCount + p.opportunities.length,
+    };
+  }, { revenue:0, ebitda:0, currentEV:0, ebitdaLift:0, rawEbitdaLift:0, evImpact:0, rawEvImpact:0, newEV:0, oppsCount:0 });
+  totals.evLiftPct = totals.currentEV > 0 ? totals.evImpact / totals.currentEV : 0;
+  return totals;
+}
+
+function diligenceStats(t) {
+  const scores = DILIGENCE_DIMS.map(d => t.scores[d.id]?.score || 0);
+  const avg = scores.reduce((a,b) => a+b, 0) / scores.length;
+  const totalEBITDALift = t.opportunities.reduce((a, o) => a + (o.ebitdaImpact * o.confidence), 0);
+  const evImpactAtExit = totalEBITDALift * t.targetExitMultiple;
+  const impliedNewEBITDA = t.ebitda + totalEBITDALift;
+  const projectedExitValue = impliedNewEBITDA * t.targetExitMultiple;
+  const purchaseMultipleOfEbitda = t.ebitda > 0 ? t.proposedPrice / t.ebitda : 0;
+  const moic = t.proposedPrice > 0 ? projectedExitValue / t.proposedPrice : 0;
+  return { avg, scores, totalEBITDALift, evImpactAtExit, impliedNewEBITDA, projectedExitValue, purchaseMultipleOfEbitda, moic };
+}
+
+function verdictFromScore(avg) {
+  if (avg >= 4.0) return { key: "strong", label: "Strong — well-positioned for AI-driven growth", short: "STRONG" };
+  if (avg >= 3.0) return { key: "solid", label: "Solid — standard value creation path", short: "SOLID" };
+  if (avg >= 2.0) return { key: "cautious", label: "Cautious — requires meaningful post-close investment", short: "CAUTIOUS" };
+  return { key: "risk", label: "High risk — proceed only with clear remediation plan", short: "HIGH RISK" };
+}
+
+function categoryLabel(id) { return CATEGORIES.find(c => c.id === id)?.label || id; }
+
+/* ---------- ROUTING ---------- */
+document.querySelectorAll("aside nav a").forEach(a => a.addEventListener("click", () => {
+  currentTab = a.dataset.tab;
+  render();
+}));
+
+function render() {
+  document.querySelectorAll("aside nav a").forEach(a => a.classList.toggle("active", a.dataset.tab === currentTab));
+  renderAIStatus();
+  const main = document.getElementById("main");
+  if (currentTab === "firm") main.innerHTML = renderFirm();
+  else if (currentTab === "portfolio") main.innerHTML = currentPortcoId ? renderPortcoDetail() : renderPortfolio();
+  else if (currentTab === "opportunities") main.innerHTML = renderOpportunities();
+  else if (currentTab === "report") main.innerHTML = renderReport();
+  else if (currentTab === "diligence") main.innerHTML = currentDiligenceId ? renderDiligenceTarget() : renderDiligencePipeline();
+  else if (currentTab === "scorecard") main.innerHTML = renderDiligenceScorecard();
+  bindEvents();
+  if (currentTab === "report") drawReportCharts();
+  if (currentTab === "portfolio" && currentPortcoId) drawPortcoCharts();
+  if (currentTab === "diligence" && currentDiligenceId) drawDiligenceRadar("diligence-radar");
+  if (currentTab === "scorecard" && currentDiligenceId) { drawDiligenceRadar("scorecard-radar"); drawScorecardImpact(); }
+}
+
+function renderAIStatus() {
+  const key = localStorage.getItem(API_KEY_STORAGE);
+  const el = document.getElementById("ai-status-indicator");
+  el.innerHTML = key
+    ? '<span class="dot-live"></span> Live AI on'
+    : '<span class="dot-mock"></span> Sample mode';
+}
+
+/* ---------- FIRM TAB ---------- */
+function renderFirm() {
+  const s = portfolioStats();
+  return `
+    <div class="page-header">
+      <div class="title"><h1>PE Firm Setup</h1><div class="breadcrumb">Start here — configure the firm and their portfolio.</div></div>
+      <div class="actions"><button class="btn small" onclick="resetSample()">Reset to sample</button></div>
+    </div>
+
+    <div class="card">
+      <h2>${escapeHtml(state.firm.name)}</h2>
+      <div class="grid-2">
+        <div>
+          <div class="field"><label>Firm name</label><input id="f-name" value="${escapeAttr(state.firm.name)}"></div>
+          <div class="field"><label>AUM ($M)</label><input id="f-aum" type="number" value="${state.firm.aum}"></div>
+          <div class="field"><label>Fund vintage</label><input id="f-vintage" type="number" value="${state.firm.vintage}"></div>
+        </div>
+        <div>
+          <div class="field"><label>Sector focus</label><input id="f-focus" value="${escapeAttr(state.firm.focus)}"></div>
+          <div class="field"><label>Target hold (years)</label><input id="f-hold" type="number" value="${state.firm.holdYears}"></div>
+          <div class="field"><label>Avg exit multiple (EV / EBITDA)</label><input id="f-mult" type="number" step="0.5" value="${state.firm.avgExitMultiple}"></div>
+        </div>
+      </div>
+      <button class="btn primary" onclick="saveFirm()">Save firm details</button>
+    </div>
+
+    <div class="callout">
+      <h2>Portfolio-level opportunity</h2>
+      <div class="big">${fmtM(s.evImpact)}</div>
+      <div class="sub">of estimated enterprise-value creation across ${state.portcos.length} portfolio companies — ${fmtPct(s.evLiftPct)} above the current run-rate EV of ${fmtM(s.currentEV)}.</div>
+      <div class="grid">
+        <div><div class="l">Portfolio revenue</div><div class="v">${fmtM(s.revenue)}</div></div>
+        <div><div class="l">EBITDA lift (risk-adjusted)</div><div class="v">${fmtM(s.ebitdaLift)}</div></div>
+        <div><div class="l">Opportunities mapped</div><div class="v">${s.oppsCount}</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Two modes</h2>
+      <div class="grid-2">
+        <div>
+          <h3>Value Creation</h3>
+          <p style="color: var(--muted); font-size: 13px;">Evaluate portfolio companies you already own. Identify AI-enabled EBITDA opportunities. Roll up to a firm-level EV creation report.</p>
+        </div>
+        <div>
+          <h3>Diligence</h3>
+          <p style="color: var(--muted); font-size: 13px;">Evaluate a company you're considering acquiring. Score AI readiness across 6 dimensions. Produce a pre-close diligence scorecard.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function saveFirm() {
+  state.firm.name = document.getElementById("f-name").value;
+  state.firm.aum = parseFloat(document.getElementById("f-aum").value) || 0;
+  state.firm.vintage = parseInt(document.getElementById("f-vintage").value) || 0;
+  state.firm.focus = document.getElementById("f-focus").value;
+  state.firm.holdYears = parseInt(document.getElementById("f-hold").value) || 0;
+  state.firm.avgExitMultiple = parseFloat(document.getElementById("f-mult").value) || 0;
+  save();
+  render();
+}
+
+/* ---------- PORTFOLIO TAB ---------- */
+function renderPortfolio() {
+  return `
+    <div class="page-header">
+      <div class="title"><h1>Portfolio</h1><div class="breadcrumb">${state.firm.name} · ${state.portcos.length} companies</div></div>
+      <div class="actions"><button class="btn primary" onclick="addPortco()">+ Add portfolio company</button></div>
+    </div>
+    <div class="grid-2">
+      ${state.portcos.map(p => renderPortcoCard(p)).join("")}
+    </div>
+  `;
+}
+
+function renderPortcoCard(p) {
+  const s = portcoStats(p);
+  return `
+    <div class="card portco-card" onclick="openPortco('${p.id}')">
+      <div class="head">
+        <div><h3>${escapeHtml(p.name)}</h3><div class="sector">${escapeHtml(p.sector)}</div></div>
+        <div class="badge ${aiMaturityBadge(p.aiMaturity)}">${p.aiMaturity} AI</div>
+      </div>
+      <div class="metrics">
+        <div class="m"><div class="l">Revenue</div><div class="v">${fmtM(p.revenue)}</div></div>
+        <div class="m"><div class="l">EBITDA</div><div class="v">${fmtM(p.ebitda)}</div></div>
+        <div class="m"><div class="l">Exit mult.</div><div class="v">${p.exitMultiple}x</div></div>
+      </div>
+      <div class="opps-summary">
+        <span>${p.opportunities.length} opportunities · ${fmtM(s.totalEBITDALift)} EBITDA lift</span>
+        <span class="ev-hero">+${fmtM(s.evImpact)} EV</span>
+      </div>
+    </div>
+  `;
+}
+
+function aiMaturityBadge(m) {
+  return { "None": "bad", "Emerging": "warn", "Adopting": "gray", "Advanced": "good" }[m] || "gray";
+}
+
+function openPortco(id) { currentPortcoId = id; render(); }
+
+function renderPortcoDetail() {
+  const p = state.portcos.find(x => x.id === currentPortcoId);
+  if (!p) { currentPortcoId = null; return renderPortfolio(); }
+  const s = portcoStats(p);
+  return `
+    <div class="page-header">
+      <div class="title">
+        <div class="breadcrumb"><a onclick="currentPortcoId=null;render()">← Portfolio</a> · ${state.firm.name}</div>
+        <h1>${escapeHtml(p.name)}</h1>
+      </div>
+      <div class="actions"><button class="btn danger" onclick="deletePortco('${p.id}')">Delete portco</button></div>
+    </div>
+
+    <div class="grid-4">
+      <div class="stat"><div class="label">Revenue</div><div class="value">${fmtM(p.revenue)}</div></div>
+      <div class="stat"><div class="label">EBITDA</div><div class="value">${fmtM(p.ebitda)}</div><div class="sub">${fmtPct(p.ebitda/p.revenue)} margin</div></div>
+      <div class="stat"><div class="label">Current EV</div><div class="value">${fmtM(s.currentEV)}</div><div class="sub">at ${p.exitMultiple}x</div></div>
+      <div class="stat"><div class="label">EV opportunity</div><div class="value" style="color:var(--good)">+${fmtM(s.evImpact)}</div><div class="delta">${fmtPct(s.evLiftPct)} lift</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Company profile</h2>
+      <div class="grid-2">
+        <div>
+          <div class="field"><label>Name</label><input id="p-name" value="${escapeAttr(p.name)}"></div>
+          <div class="field"><label>Sector</label><input id="p-sector" value="${escapeAttr(p.sector)}"></div>
+          <div class="field"><label>Employees</label><input id="p-emp" type="number" value="${p.employees}"></div>
+          <div class="field">
+            <label>AI maturity</label>
+            <select id="p-mat">${["None","Emerging","Adopting","Advanced"].map(m => `<option ${m===p.aiMaturity?"selected":""}>${m}</option>`).join("")}</select>
+          </div>
+        </div>
+        <div>
+          <div class="field"><label>Revenue ($M)</label><input id="p-rev" type="number" step="0.1" value="${p.revenue}"></div>
+          <div class="field"><label>EBITDA ($M)</label><input id="p-ebi" type="number" step="0.1" value="${p.ebitda}"></div>
+          <div class="field"><label>Exit multiple (EV/EBITDA)</label><input id="p-mult" type="number" step="0.5" value="${p.exitMultiple}"></div>
+          <div class="field"><label>Notes</label><textarea id="p-notes" rows="3">${escapeHtml(p.notes||"")}</textarea></div>
+        </div>
+      </div>
+      <button class="btn primary" onclick="savePortco('${p.id}')">Save changes</button>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2 style="margin-bottom:0;">Opportunities (${p.opportunities.length})</h2>
+        <div>
+          <button class="btn small" onclick="suggestAI('${p.id}')" id="ai-suggest-btn">✨ Suggest with AI</button>
+          <button class="btn small primary" onclick="addOpportunity('${p.id}')">+ Add opportunity</button>
+        </div>
+      </div>
+      <table style="margin-top:12px;">
+        <thead><tr><th>Opportunity</th><th>Category</th><th>EBITDA lift</th><th>Effort</th><th>Confidence</th><th>EV impact</th><th></th></tr></thead>
+        <tbody>${p.opportunities.map(o => renderOppRow(p, o, false)).join("")}</tbody>
+      </table>
+      ${p.opportunities.length === 0 ? `<div class="empty"><h3>No opportunities yet</h3><p>Click "Suggest with AI" to auto-generate a starting list, or add your own.</p></div>` : ""}
+    </div>
+
+    <div class="card">
+      <h2>Impact chart</h2>
+      <canvas id="portco-chart" height="240"></canvas>
+      <div class="waterfall-legend">
+        <span><span class="swatch" style="background:var(--indigo)"></span>Current EBITDA</span>
+        <span><span class="swatch" style="background:var(--good)"></span>Opportunity contribution (risk-adjusted)</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderOppRow(context, o, isDiligence) {
+  const editingVar = isDiligence ? editingDilOppId : editingOppId;
+  const contextId = isDiligence ? currentDiligenceId : currentPortcoId;
+  const editFn = isDiligence ? "editDilOpp" : "editOpp";
+  const saveFn = isDiligence ? "saveDilOpp" : "saveOpp";
+  const deleteFn = isDiligence ? "deleteDilOpp" : "deleteOpp";
+  const cancelExpr = isDiligence ? "editingDilOppId=null;render()" : "editingOppId=null;render()";
+  const evMultiplier = isDiligence ? context.targetExitMultiple : context.exitMultiple;
+  const isEditing = editingVar === o.id;
+  const evImpact = o.ebitdaImpact * o.confidence * evMultiplier;
+  if (!isEditing) {
+    return `
+      <tr class="opp-row" onclick="event.stopPropagation();${editFn}('${o.id}')">
+        <td class="title-cell">${escapeHtml(o.title)}<div class="desc">${escapeHtml(o.desc)}</div></td>
+        <td><span class="badge gray">${categoryLabel(o.category)}</span></td>
+        <td class="impact-cell">${fmtM(o.ebitdaImpact)}</td>
+        <td>${o.effortWeeks}w</td>
+        <td>${fmtPct(o.confidence)}</td>
+        <td class="ev-cell">+${fmtM(evImpact)}</td>
+        <td><button class="btn small" onclick="event.stopPropagation();${deleteFn}('${contextId}','${o.id}')">×</button></td>
+      </tr>`;
+  }
+  return `
+    <tr><td colspan="7">
+      <div class="opp-editor">
+        <div class="row">
+          <div class="field full"><label>Title</label><input id="o-title" value="${escapeAttr(o.title)}"></div>
+          <div class="field full"><label>Description</label><textarea id="o-desc" rows="2">${escapeHtml(o.desc)}</textarea></div>
+          <div class="field"><label>Category</label><select id="o-cat">${CATEGORIES.map(c => `<option value="${c.id}" ${c.id===o.category?"selected":""}>${c.label}</option>`).join("")}</select></div>
+          <div class="field"><label>EBITDA lift ($M)</label><input id="o-imp" type="number" step="0.01" value="${o.ebitdaImpact}"></div>
+          <div class="field"><label>Effort (weeks)</label><input id="o-eff" type="number" value="${o.effortWeeks}"></div>
+          <div class="field"><label>Confidence</label><input id="o-conf" type="number" step="0.05" min="0" max="1" value="${o.confidence}"></div>
+        </div>
+        <div style="margin-top:12px;text-align:right;">
+          <button class="btn" onclick="${cancelExpr}">Cancel</button>
+          <button class="btn primary" onclick="${saveFn}('${contextId}','${o.id}')">Save</button>
+        </div>
+      </div>
+    </td></tr>`;
+}
+
+function savePortco(id) {
+  const p = state.portcos.find(x => x.id === id);
+  p.name = document.getElementById("p-name").value;
+  p.sector = document.getElementById("p-sector").value;
+  p.employees = parseInt(document.getElementById("p-emp").value) || 0;
+  p.aiMaturity = document.getElementById("p-mat").value;
+  p.revenue = parseFloat(document.getElementById("p-rev").value) || 0;
+  p.ebitda = parseFloat(document.getElementById("p-ebi").value) || 0;
+  p.exitMultiple = parseFloat(document.getElementById("p-mult").value) || 0;
+  p.notes = document.getElementById("p-notes").value;
+  save(); render();
+}
+function deletePortco(id) {
+  if (!confirm("Delete this portfolio company?")) return;
+  state.portcos = state.portcos.filter(p => p.id !== id);
+  currentPortcoId = null;
+  save(); render();
+}
+function addPortco() {
+  const id = "new-" + Date.now();
+  state.portcos.push({ id, name:"New portfolio company", sector:"Sector", revenue:20, ebitda:3, employees:50, aiMaturity:"Emerging", exitMultiple:8, notes:"", opportunities:[] });
+  currentPortcoId = id;
+  currentTab = "portfolio";
+  save(); render();
+}
+function editOpp(id) { editingOppId = id; render(); }
+function saveOpp(pid, oid) {
+  const p = state.portcos.find(x => x.id === pid);
+  const o = p.opportunities.find(x => x.id === oid);
+  o.title = document.getElementById("o-title").value;
+  o.desc = document.getElementById("o-desc").value;
+  o.category = document.getElementById("o-cat").value;
+  o.ebitdaImpact = parseFloat(document.getElementById("o-imp").value) || 0;
+  o.effortWeeks = parseInt(document.getElementById("o-eff").value) || 0;
+  o.confidence = Math.min(1, Math.max(0, parseFloat(document.getElementById("o-conf").value) || 0));
+  editingOppId = null;
+  save(); render();
+}
+function deleteOpp(pid, oid) {
+  if (!confirm("Delete this opportunity?")) return;
+  const p = state.portcos.find(x => x.id === pid);
+  p.opportunities = p.opportunities.filter(o => o.id !== oid);
+  save(); render();
+}
+function addOpportunity(pid) {
+  const p = state.portcos.find(x => x.id === pid);
+  const id = "new-" + Date.now();
+  p.opportunities.push({ id, title:"New opportunity", category:"ops", desc:"Describe the AI-enabled opportunity.", ebitdaImpact:0.10, effortWeeks:8, confidence:0.5, timeToImpact:6 });
+  editingOppId = id;
+  save(); render();
+}
+
+/* ---------- CLAUDE API ---------- */
+async function callClaude(system, user) {
+  const key = localStorage.getItem(API_KEY_STORAGE);
+  const model = localStorage.getItem(MODEL_STORAGE) || "claude-haiku-4-5-20251001";
+  if (!key) throw new Error("No API key");
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model, max_tokens: 1024, system,
+      messages: [{ role: "user", content: user }]
+    })
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error("API " + resp.status + ": " + errText.slice(0, 200));
+  }
+  const data = await resp.json();
+  return data.content[0].text;
+}
+
+async function generateOpportunityWithClaude(context, isDiligence) {
+  const contextType = isDiligence ? "prospective acquisition target" : "portfolio company";
+  const system = `You are an experienced private-equity operating partner and AI-transformation advisor. You help PE firms identify concrete, high-value AI-enabled operational opportunities inside their ${contextType}. You are practical, financially literate, and skeptical of AI hype — every opportunity you propose must have a clear business mechanism and a realistic EBITDA impact.
+
+You will output a single opportunity as strict JSON, no prose, no markdown fences. Schema:
+{"title": "short concrete opportunity title (max 8 words)", "category": "one of: sales | marketing | support | ops | finance | product | hr", "desc": "2-3 sentence description explaining what would be built, who benefits, and what mechanism drives EBITDA impact", "ebitdaImpact": <number, $M annual EBITDA impact at steady state>, "effortWeeks": <int, weeks to implement>, "confidence": <number 0-1, your confidence this delivers>, "timeToImpact": <int, months to measurable impact>}`;
+
+  const existing = context.opportunities.map(o => o.title).join(", ") || "(none yet)";
+  const user = `Propose ONE new AI-enabled operational opportunity for this ${contextType}. Do not duplicate any of the existing opportunities.
+
+Company: ${context.name}
+Sector: ${context.sector}
+Revenue: $${context.revenue}M
+EBITDA: $${context.ebitda}M (${((context.ebitda/context.revenue)*100).toFixed(0)}% margin)
+Employees: ${context.employees}
+${!isDiligence ? `Current AI maturity: ${context.aiMaturity}\n` : ""}Notes: ${context.notes || "(none)"}
+
+Existing opportunities to avoid duplicating: ${existing}
+
+Return one opportunity as JSON only.`;
+
+  const text = await callClaude(system, user);
+  // Try to extract JSON even if the model wraps it in prose or fences
+  let jsonStr = text.trim();
+  const fenceMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) jsonStr = fenceMatch[1].trim();
+  const objMatch = jsonStr.match(/\{[\s\S]*\}/);
+  if (objMatch) jsonStr = objMatch[0];
+  const parsed = JSON.parse(jsonStr);
+  return {
+    title: String(parsed.title || "New opportunity"),
+    category: parsed.category || "ops",
+    desc: String(parsed.desc || ""),
+    ebitdaImpact: Math.max(0, parseFloat(parsed.ebitdaImpact) || 0.1),
+    effortWeeks: Math.max(1, parseInt(parsed.effortWeeks) || 8),
+    confidence: Math.min(1, Math.max(0, parseFloat(parsed.confidence) || 0.5)),
+    timeToImpact: Math.max(1, parseInt(parsed.timeToImpact) || 6),
+  };
+}
+
+async function suggestAI(pid) {
+  const p = state.portcos.find(x => x.id === pid);
+  const btn = document.getElementById("ai-suggest-btn");
+  const originalLabel = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span>Analyzing…';
+  btn.disabled = true;
+  try {
+    if (localStorage.getItem(API_KEY_STORAGE)) {
+      const opp = await generateOpportunityWithClaude(p, false);
+      p.opportunities.push({ ...opp, id: "ai-" + Date.now() });
+      save();
+    } else {
+      await new Promise(r => setTimeout(r, 1200));
+      const key = p.sector.toLowerCase().split(" ")[0];
+      const pool = SUGGESTION_POOL[key] || SUGGESTION_POOL.default;
+      const existing = new Set(p.opportunities.map(o => o.title));
+      const fresh = pool.find(s => !existing.has(s.title));
+      if (fresh) { p.opportunities.push({ ...fresh, id:"ai-"+Date.now() }); save(); }
+    }
+  } catch (err) {
+    alert("AI suggestion failed:\n" + err.message + "\n\nCheck your API key in Settings.");
+    btn.innerHTML = originalLabel; btn.disabled = false;
+    return;
+  }
+  render();
+}
+
+const SUGGESTION_POOL = {
+  vertical: [
+    { title:"Sales-call intelligence & coaching", category:"sales", desc:"Auto-analyze recorded sales calls; surface objection patterns and coach reps in near-real-time. Lift win rate 4-6 points.", ebitdaImpact:0.30, effortWeeks:8, confidence:0.65, timeToImpact:5 },
+    { title:"Contract review AI", category:"finance", desc:"AI-assisted MSA and DPA review for procurement. Cut legal cycle by 60% on standard-form review.", ebitdaImpact:0.15, effortWeeks:6, confidence:0.7, timeToImpact:4 },
+  ],
+  b2b: [
+    { title:"Field-tech knowledge assistant", category:"product", desc:"On-device assistant for field technicians: diagnose, parts lookup, service report generation. Cut avg call 15 minutes.", ebitdaImpact:0.38, effortWeeks:12, confidence:0.55, timeToImpact:8 },
+    { title:"Predictive maintenance triage", category:"ops", desc:"Route inbound service requests via urgency + tech skill match. Reduce truck rolls 8%.", ebitdaImpact:0.22, effortWeeks:10, confidence:0.5, timeToImpact:7 },
+  ],
+  dtc: [
+    { title:"Creative asset generation pipeline", category:"marketing", desc:"AI-first pipeline for ad creative, landing pages, and lifecycle. Reduce paid-media production cost 40%.", ebitdaImpact:0.28, effortWeeks:6, confidence:0.75, timeToImpact:4 },
+    { title:"Post-purchase upsell agent", category:"sales", desc:"AI-generated 1:1 post-purchase upsells via email + SMS. Lift AOV 6-8%.", ebitdaImpact:0.45, effortWeeks:8, confidence:0.65, timeToImpact:5 },
+  ],
+  hvac: [
+    { title:"AI-driven demand forecasting", category:"ops", desc:"Seasonal + weather-informed dispatch and inventory planning across regional brands. Reduce stockouts + smooth tech utilization.", ebitdaImpact:0.60, effortWeeks:14, confidence:0.55, timeToImpact:9 },
+  ],
+  default: [
+    { title:"Cross-functional AI enablement", category:"hr", desc:"Company-wide AI training + tool rollout. Measurable productivity lift in first 90 days.", ebitdaImpact:0.20, effortWeeks:12, confidence:0.5, timeToImpact:6 },
+  ]
+};
+
+/* ---------- OPPORTUNITIES TAB ---------- */
+function renderOpportunities() {
+  const all = [];
+  state.portcos.forEach(p => p.opportunities.forEach(o => {
+    const evImpact = o.ebitdaImpact * o.confidence * p.exitMultiple;
+    all.push({ portco: p, opp: o, evImpact });
+  }));
+  all.sort((a,b) => b.evImpact - a.evImpact);
+  return `
+    <div class="page-header">
+      <div class="title"><h1>Opportunities</h1><div class="breadcrumb">${all.length} opportunities across ${state.portcos.length} portfolio companies · sorted by EV impact</div></div>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Rank</th><th>Portco</th><th>Opportunity</th><th>Category</th><th>EBITDA lift</th><th>Effort</th><th>Confidence</th><th>EV impact</th></tr></thead>
+        <tbody>
+          ${all.map((row, i) => `
+            <tr onclick="currentTab='portfolio';currentPortcoId='${row.portco.id}';render()">
+              <td><strong>#${i+1}</strong></td>
+              <td>${escapeHtml(row.portco.name)}</td>
+              <td class="title-cell">${escapeHtml(row.opp.title)}<div class="desc">${escapeHtml(row.opp.desc)}</div></td>
+              <td><span class="badge gray">${categoryLabel(row.opp.category)}</span></td>
+              <td class="impact-cell">${fmtM(row.opp.ebitdaImpact)}</td>
+              <td>${row.opp.effortWeeks}w</td>
+              <td>${fmtPct(row.opp.confidence)}</td>
+              <td class="ev-cell">+${fmtM(row.evImpact)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ---------- EXECUTIVE REPORT TAB ---------- */
+function renderReport() {
+  const s = portfolioStats();
+  const byPortco = state.portcos.map(p => ({ p, s: portcoStats(p) })).sort((a,b) => b.s.evImpact - a.s.evImpact);
+  const byCat = {};
+  state.portcos.forEach(p => p.opportunities.forEach(o => {
+    const evImpact = o.ebitdaImpact * o.confidence * p.exitMultiple;
+    byCat[o.category] = (byCat[o.category] || 0) + evImpact;
+  }));
+  const catRows = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
+
+  return `
+    <div class="page-header no-print">
+      <div class="title"><h1>Executive Report</h1><div class="breadcrumb">Client-facing summary — print or hand to the operating partner.</div></div>
+      <div class="actions"><button class="btn primary" onclick="window.print()">Print / Save as PDF</button></div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-header">
+        <div><div class="brand-mark">Portfolio AI Value Creation Assessment</div><h2 style="margin-top:4px;">${escapeHtml(state.firm.name)}</h2></div>
+        <div style="text-align:right;color:var(--muted);font-size:12px;">Prepared for the Value Creation team<br>${new Date().toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" })}</div>
+      </div>
+
+      <h2>Executive summary</h2>
+      <p>Across a portfolio of ${state.portcos.length} companies representing ${fmtM(s.revenue)} in aggregate revenue and ${fmtM(s.currentEV)} in current enterprise value, we have identified <strong>${s.oppsCount} concrete AI-enabled operational opportunities</strong> that, when risk-adjusted for confidence, would generate approximately <strong style="color:var(--good)">${fmtM(s.ebitdaLift)} in incremental EBITDA</strong> and translate into <strong style="color:var(--indigo-dark)">${fmtM(s.evImpact)} of enterprise value creation</strong> at exit — a lift of ${fmtPct(s.evLiftPct)} above the current run-rate.</p>
+      <p>The concentration of opportunity is skewed toward three categories: <strong>${catRows.slice(0,3).map(c => categoryLabel(c[0])).join(", ")}</strong>. A staged 12-month rollout across the top-ranked opportunities per portco would deliver the majority of this value within a single hold-period year.</p>
+
+      <div class="grid-4" style="margin-top:16px;">
+        <div class="stat"><div class="label">Aggregate revenue</div><div class="value">${fmtM(s.revenue)}</div></div>
+        <div class="stat"><div class="label">EBITDA lift (adj.)</div><div class="value" style="color:var(--good)">+${fmtM(s.ebitdaLift)}</div></div>
+        <div class="stat"><div class="label">EV creation potential</div><div class="value" style="color:var(--indigo-dark)">${fmtM(s.evImpact)}</div></div>
+        <div class="stat"><div class="label">Lift vs. current EV</div><div class="value">${fmtPct(s.evLiftPct)}</div></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>Value creation by portfolio company</h2>
+      <canvas id="report-portco-chart" height="220"></canvas>
+      <table style="margin-top:16px;">
+        <thead><tr><th>Rank</th><th>Company</th><th>Sector</th><th>Current EV</th><th>EBITDA lift</th><th>EV creation</th><th>Lift %</th></tr></thead>
+        <tbody>
+          ${byPortco.map((row, i) => `
+            <tr>
+              <td><strong>#${i+1}</strong></td>
+              <td><strong>${escapeHtml(row.p.name)}</strong></td>
+              <td>${escapeHtml(row.p.sector)}</td>
+              <td>${fmtM(row.s.currentEV)}</td>
+              <td class="impact-cell">+${fmtM(row.s.totalEBITDALift)}</td>
+              <td class="ev-cell">${fmtM(row.s.evImpact)}</td>
+              <td><span class="badge good">+${fmtPct(row.s.evLiftPct)}</span></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="report-section">
+      <h2>Value creation by opportunity category</h2>
+      <canvas id="report-cat-chart" height="200"></canvas>
+    </div>
+
+    <div class="report-section">
+      <h2>Recommended next steps</h2>
+      <ol style="padding-left: 20px; color: var(--text);">
+        <li><strong>Prioritization workshop.</strong> Confirm portco owner buy-in on the top 3 opportunities each. 90-minute session per portco.</li>
+        <li><strong>Deep-dive assessment</strong> on the top 5 portfolio-wide opportunities (2–3 weeks each). Validates savings estimates with real usage data.</li>
+        <li><strong>Pilot deployments</strong> at 2 fast-moving portcos to prove the model before scaling across the portfolio.</li>
+        <li><strong>Governance</strong> at the firm level — a quarterly value-creation review reporting AI-enabled EBITDA impact per portco to the deal team and LP-reporting.</li>
+      </ol>
+    </div>
+  `;
+}
+
+function drawReportCharts() {
+  const byPortco = state.portcos.map(p => ({ p, s: portcoStats(p) })).sort((a,b) => b.s.evImpact - a.s.evImpact);
+  const cur = byPortco.map(x => x.s.currentEV);
+  const lift = byPortco.map(x => x.s.evImpact);
+  const labels = byPortco.map(x => x.p.name);
+  new Chart(document.getElementById("report-portco-chart"), {
+    type: "bar",
+    data: { labels, datasets: [
+      { label: "Current EV", data: cur, backgroundColor: "rgba(79,70,229,0.7)" },
+      { label: "EV creation opportunity", data: lift, backgroundColor: "rgba(5,150,105,0.85)" }
+    ]},
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { x: { stacked: true }, y: { stacked: true, ticks: { callback: v => "$"+v.toFixed(0)+"M" } } },
+      plugins: { legend: { position: "top" } } }
+  });
+
+  const byCat = {};
+  state.portcos.forEach(p => p.opportunities.forEach(o => {
+    const evImpact = o.ebitdaImpact * o.confidence * p.exitMultiple;
+    byCat[o.category] = (byCat[o.category] || 0) + evImpact;
+  }));
+  const catRows = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
+  new Chart(document.getElementById("report-cat-chart"), {
+    type: "bar",
+    data: { labels: catRows.map(c => categoryLabel(c[0])), datasets: [{ label: "EV creation", data: catRows.map(c => c[1]), backgroundColor: "rgba(79,70,229,0.85)" }] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      scales: { x: { ticks: { callback: v => "$"+v.toFixed(1)+"M" } } },
+      plugins: { legend: { display: false } } }
+  });
+}
+
+function drawPortcoCharts() {
+  const p = state.portcos.find(x => x.id === currentPortcoId);
+  if (!p) return;
+  const oppLabels = p.opportunities.map(o => o.title.length > 30 ? o.title.slice(0,28)+"…" : o.title);
+  const oppVals = p.opportunities.map(o => o.ebitdaImpact * o.confidence);
+  new Chart(document.getElementById("portco-chart"), {
+    type: "bar",
+    data: {
+      labels: ["Current EBITDA", ...oppLabels, "New EBITDA"],
+      datasets: [{ label: "EBITDA ($M)", data: [p.ebitda, ...oppVals, p.ebitda + oppVals.reduce((a,b)=>a+b,0)],
+        backgroundColor: ["rgba(79,70,229,0.85)", ...oppVals.map(() => "rgba(5,150,105,0.85)"), "rgba(79,70,229,0.85)"] }]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { y: { ticks: { callback: v => "$"+v.toFixed(1)+"M" } } },
+      plugins: { legend: { display: false } } }
+  });
+}
+
+/* ---------- DILIGENCE TAB ---------- */
+function renderDiligencePipeline() {
+  return `
+    <div class="page-header">
+      <div class="title"><h1>Deal Pipeline</h1><div class="breadcrumb">Diligence targets · ${state.diligence.length} in pipeline</div></div>
+      <div class="actions"><button class="btn primary" onclick="addDiligenceTarget()">+ Add target</button></div>
+    </div>
+    ${state.diligence.length === 0 ? `<div class="empty"><h3>No targets in pipeline</h3><p>Add a target to begin AI-readiness diligence.</p></div>` : `
+      <div class="grid-2">
+        ${state.diligence.map(t => renderDiligenceCard(t)).join("")}
+      </div>
+    `}
+  `;
+}
+
+function renderDiligenceCard(t) {
+  const s = diligenceStats(t);
+  const v = verdictFromScore(s.avg);
+  return `
+    <div class="card portco-card" onclick="openDiligence('${t.id}')">
+      <div class="head">
+        <div><h3>${escapeHtml(t.name)}</h3><div class="sector">${escapeHtml(t.sector)}</div></div>
+        <div class="badge ${v.key === 'strong' ? 'good' : v.key === 'solid' ? '' : v.key === 'cautious' ? 'warn' : 'bad'}">${v.short}</div>
+      </div>
+      <div class="metrics">
+        <div class="m"><div class="l">Rev / EBITDA</div><div class="v">${fmtM(t.revenue)} / ${fmtM(t.ebitda)}</div></div>
+        <div class="m"><div class="l">Proposed price</div><div class="v">${fmtM(t.proposedPrice)}</div></div>
+        <div class="m"><div class="l">Purchase mult.</div><div class="v">${s.purchaseMultipleOfEbitda.toFixed(1)}x</div></div>
+      </div>
+      <div class="opps-summary">
+        <span>Score: ${s.avg.toFixed(1)} / 5.0 · ${t.opportunities.length} opps identified</span>
+        <span class="ev-hero">${s.moic.toFixed(1)}x projected MOIC</span>
+      </div>
+    </div>
+  `;
+}
+
+function openDiligence(id) { currentDiligenceId = id; render(); }
+
+function renderDiligenceTarget() {
+  const t = state.diligence.find(x => x.id === currentDiligenceId);
+  if (!t) { currentDiligenceId = null; return renderDiligencePipeline(); }
+  const s = diligenceStats(t);
+  const v = verdictFromScore(s.avg);
+  return `
+    <div class="page-header">
+      <div class="title">
+        <div class="breadcrumb"><a onclick="currentDiligenceId=null;render()">← Deal Pipeline</a></div>
+        <h1>${escapeHtml(t.name)}</h1>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="currentTab='scorecard';render()">View Scorecard →</button>
+        <button class="btn danger" onclick="deleteDiligence('${t.id}')">Delete</button>
+      </div>
+    </div>
+
+    <div class="verdict-banner ${v.key}">
+      <div><div class="label">Overall AI-readiness verdict</div><div class="verdict">${v.label}</div></div>
+      <div class="score-box"><div class="l">Score</div><div class="v">${s.avg.toFixed(1)}<span class="max">/5.0</span></div></div>
+    </div>
+
+    <div class="grid-4">
+      <div class="stat"><div class="label">Revenue / EBITDA</div><div class="value">${fmtM(t.revenue)} / ${fmtM(t.ebitda)}</div></div>
+      <div class="stat"><div class="label">Purchase price</div><div class="value">${fmtM(t.proposedPrice)}</div><div class="sub">${s.purchaseMultipleOfEbitda.toFixed(1)}x EBITDA</div></div>
+      <div class="stat"><div class="label">Projected exit</div><div class="value">${fmtM(s.projectedExitValue)}</div><div class="sub">at ${t.targetExitMultiple}x on $${s.impliedNewEBITDA.toFixed(1)}M</div></div>
+      <div class="stat"><div class="label">Projected MOIC</div><div class="value" style="color:var(--good)">${s.moic.toFixed(1)}x</div><div class="sub">gross, unlevered</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Target profile</h2>
+      <div class="grid-2">
+        <div>
+          <div class="field"><label>Target name</label><input id="d-name" value="${escapeAttr(t.name)}"></div>
+          <div class="field"><label>Sector</label><input id="d-sector" value="${escapeAttr(t.sector)}"></div>
+          <div class="field"><label>Employees</label><input id="d-emp" type="number" value="${t.employees}"></div>
+          <div class="field"><label>Revenue ($M)</label><input id="d-rev" type="number" step="0.1" value="${t.revenue}"></div>
+          <div class="field"><label>EBITDA ($M)</label><input id="d-ebi" type="number" step="0.1" value="${t.ebitda}"></div>
+        </div>
+        <div>
+          <div class="field"><label>Proposed purchase price ($M)</label><input id="d-price" type="number" step="1" value="${t.proposedPrice}"></div>
+          <div class="field"><label>Target hold (years)</label><input id="d-hold" type="number" value="${t.targetHold}"></div>
+          <div class="field"><label>Target exit multiple</label><input id="d-tmult" type="number" step="0.5" value="${t.targetExitMultiple}"></div>
+          <div class="field"><label>Deal notes</label><textarea id="d-notes" rows="4">${escapeHtml(t.notes||"")}</textarea></div>
+        </div>
+      </div>
+      <button class="btn primary" onclick="saveDiligence('${t.id}')">Save changes</button>
+    </div>
+
+    <div class="card">
+      <h2>AI readiness scoring (1 = weak / 5 = strong)</h2>
+      ${DILIGENCE_DIMS.map(d => {
+        const s = t.scores[d.id] || { score: 3, notes: "" };
+        return `
+        <div class="score-row">
+          <div class="dim">${d.label}<div class="sub">${d.sub}</div></div>
+          <div class="score-pills">
+            ${[1,2,3,4,5].map(n => {
+              const cls = s.score === n ? "selected " + (n <= 2 ? "low" : n === 3 ? "mid" : "high") : "";
+              return `<div class="score-pill ${cls}" onclick="setScore('${t.id}','${d.id}',${n})">${n}</div>`;
+            }).join("")}
+          </div>
+          <textarea class="score-notes" placeholder="Rationale, evidence, red flags…" onchange="setScoreNotes('${t.id}','${d.id}',this.value)">${escapeHtml(s.notes)}</textarea>
+        </div>
+        `;
+      }).join("")}
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2 style="margin-bottom:0;">Opportunities identified (${t.opportunities.length})</h2>
+        <div>
+          <button class="btn small" onclick="suggestAIDiligence('${t.id}')" id="ai-suggest-btn">✨ Suggest with AI</button>
+          <button class="btn small primary" onclick="addDilOpportunity('${t.id}')">+ Add opportunity</button>
+        </div>
+      </div>
+      <table style="margin-top:12px;">
+        <thead><tr><th>Opportunity</th><th>Category</th><th>EBITDA lift</th><th>Effort</th><th>Confidence</th><th>EV impact (at exit)</th><th></th></tr></thead>
+        <tbody>${t.opportunities.map(o => renderOppRow(t, o, true)).join("")}</tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Risks & red flags</h2>
+      <ul class="risk-list">
+        ${t.risks.map((r,i) => `
+          <li><span class="flag">⚑</span><input value="${escapeAttr(r)}" onchange="updateRisk('${t.id}',${i},this.value)"><button onclick="removeRisk('${t.id}',${i})">×</button></li>
+        `).join("")}
+      </ul>
+      <button class="btn small" onclick="addRisk('${t.id}')">+ Add risk</button>
+    </div>
+
+    <div class="card">
+      <h2>Readiness radar</h2>
+      <canvas id="diligence-radar" height="280"></canvas>
+    </div>
+  `;
+}
+
+function saveDiligence(id) {
+  const t = state.diligence.find(x => x.id === id);
+  t.name = document.getElementById("d-name").value;
+  t.sector = document.getElementById("d-sector").value;
+  t.employees = parseInt(document.getElementById("d-emp").value) || 0;
+  t.revenue = parseFloat(document.getElementById("d-rev").value) || 0;
+  t.ebitda = parseFloat(document.getElementById("d-ebi").value) || 0;
+  t.proposedPrice = parseFloat(document.getElementById("d-price").value) || 0;
+  t.targetHold = parseInt(document.getElementById("d-hold").value) || 0;
+  t.targetExitMultiple = parseFloat(document.getElementById("d-tmult").value) || 0;
+  t.notes = document.getElementById("d-notes").value;
+  save(); render();
+}
+function deleteDiligence(id) {
+  if (!confirm("Delete this diligence target?")) return;
+  state.diligence = state.diligence.filter(t => t.id !== id);
+  currentDiligenceId = null;
+  save(); render();
+}
+function addDiligenceTarget() {
+  const id = "d-" + Date.now();
+  const emptyScores = {};
+  DILIGENCE_DIMS.forEach(d => emptyScores[d.id] = { score: 3, notes: "" });
+  state.diligence.push({
+    id, name:"New target", sector:"Sector", revenue:30, ebitda:5, employees:100,
+    proposedPrice:50, proposedMultiple:10, targetHold:5, targetExitMultiple:10,
+    notes:"", scores: emptyScores, opportunities:[], risks:[]
+  });
+  currentDiligenceId = id;
+  currentTab = "diligence";
+  save(); render();
+}
+function setScore(tid, dim, n) {
+  const t = state.diligence.find(x => x.id === tid);
+  if (!t.scores[dim]) t.scores[dim] = { score: n, notes: "" };
+  else t.scores[dim].score = n;
+  save(); render();
+}
+function setScoreNotes(tid, dim, notes) {
+  const t = state.diligence.find(x => x.id === tid);
+  if (!t.scores[dim]) t.scores[dim] = { score: 3, notes };
+  else t.scores[dim].notes = notes;
+  save();
+}
+function editDilOpp(id) { editingDilOppId = id; render(); }
+function saveDilOpp(tid, oid) {
+  const t = state.diligence.find(x => x.id === tid);
+  const o = t.opportunities.find(x => x.id === oid);
+  o.title = document.getElementById("o-title").value;
+  o.desc = document.getElementById("o-desc").value;
+  o.category = document.getElementById("o-cat").value;
+  o.ebitdaImpact = parseFloat(document.getElementById("o-imp").value) || 0;
+  o.effortWeeks = parseInt(document.getElementById("o-eff").value) || 0;
+  o.confidence = Math.min(1, Math.max(0, parseFloat(document.getElementById("o-conf").value) || 0));
+  editingDilOppId = null;
+  save(); render();
+}
+function deleteDilOpp(tid, oid) {
+  if (!confirm("Delete this opportunity?")) return;
+  const t = state.diligence.find(x => x.id === tid);
+  t.opportunities = t.opportunities.filter(o => o.id !== oid);
+  save(); render();
+}
+function addDilOpportunity(tid) {
+  const t = state.diligence.find(x => x.id === tid);
+  const id = "new-" + Date.now();
+  t.opportunities.push({ id, title:"New opportunity", category:"ops", desc:"Describe the AI-enabled opportunity.", ebitdaImpact:0.10, effortWeeks:8, confidence:0.5, timeToImpact:6 });
+  editingDilOppId = id;
+  save(); render();
+}
+async function suggestAIDiligence(tid) {
+  const t = state.diligence.find(x => x.id === tid);
+  const btn = document.getElementById("ai-suggest-btn");
+  const originalLabel = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span>Analyzing…';
+  btn.disabled = true;
+  try {
+    if (localStorage.getItem(API_KEY_STORAGE)) {
+      const opp = await generateOpportunityWithClaude({ ...t, aiMaturity: "" }, true);
+      t.opportunities.push({ ...opp, id: "ai-" + Date.now() });
+      save();
+    } else {
+      await new Promise(r => setTimeout(r, 1200));
+      const key = t.sector.toLowerCase().split(" ")[0];
+      const pool = SUGGESTION_POOL[key] || SUGGESTION_POOL.default;
+      const existing = new Set(t.opportunities.map(o => o.title));
+      const fresh = pool.find(s => !existing.has(s.title));
+      if (fresh) { t.opportunities.push({ ...fresh, id:"ai-"+Date.now() }); save(); }
+    }
+  } catch (err) {
+    alert("AI suggestion failed:\n" + err.message + "\n\nCheck your API key in Settings.");
+    btn.innerHTML = originalLabel; btn.disabled = false;
+    return;
+  }
+  render();
+}
+function updateRisk(tid, i, val) {
+  const t = state.diligence.find(x => x.id === tid);
+  t.risks[i] = val;
+  save();
+}
+function removeRisk(tid, i) {
+  const t = state.diligence.find(x => x.id === tid);
+  t.risks.splice(i, 1);
+  save(); render();
+}
+function addRisk(tid) {
+  const t = state.diligence.find(x => x.id === tid);
+  t.risks.push("New risk — describe here");
+  save(); render();
+}
+
+function drawDiligenceRadar(canvasId) {
+  const t = state.diligence.find(x => x.id === currentDiligenceId);
+  if (!t) return;
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  new Chart(canvas, {
+    type: "radar",
+    data: {
+      labels: DILIGENCE_DIMS.map(d => d.label),
+      datasets: [{
+        label: t.name,
+        data: DILIGENCE_DIMS.map(d => t.scores[d.id]?.score || 0),
+        backgroundColor: "rgba(79,70,229,0.2)",
+        borderColor: "rgba(79,70,229,1)",
+        pointBackgroundColor: "rgba(79,70,229,1)",
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, backdropColor: "rgba(0,0,0,0)" }, angleLines: { color: "rgba(0,0,0,0.08)" }, grid: { color: "rgba(0,0,0,0.08)" } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+/* ---------- DILIGENCE SCORECARD ---------- */
+function renderDiligenceScorecard() {
+  if (!currentDiligenceId) {
+    return `
+      <div class="page-header">
+        <div class="title"><h1>Diligence Scorecard</h1><div class="breadcrumb">Pick a target from the Deal Pipeline first.</div></div>
+      </div>
+      <div class="empty"><h3>No target selected</h3><p>Go to <a onclick="currentTab='diligence';render()">Deal Pipeline</a> and pick a target to view its scorecard.</p></div>
+    `;
+  }
+  const t = state.diligence.find(x => x.id === currentDiligenceId);
+  const s = diligenceStats(t);
+  const v = verdictFromScore(s.avg);
+  const topOpps = [...t.opportunities].sort((a,b) => (b.ebitdaImpact*b.confidence) - (a.ebitdaImpact*a.confidence)).slice(0, 3);
+  return `
+    <div class="page-header no-print">
+      <div class="title"><h1>Diligence Scorecard</h1><div class="breadcrumb">Client-facing deliverable · ${escapeHtml(t.name)}</div></div>
+      <div class="actions">
+        <button class="btn" onclick="currentTab='diligence';render()">← Back to target</button>
+        <button class="btn primary" onclick="window.print()">Print / Save as PDF</button>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-header">
+        <div><div class="brand-mark">AI-Readiness Diligence Scorecard</div><h2 style="margin-top:4px;">${escapeHtml(t.name)}</h2></div>
+        <div style="text-align:right;color:var(--muted);font-size:12px;">Prepared for ${escapeHtml(state.firm.name)}<br>${new Date().toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" })}</div>
+      </div>
+
+      <div class="verdict-banner ${v.key}">
+        <div><div class="label">Overall verdict</div><div class="verdict">${v.label}</div></div>
+        <div class="score-box"><div class="l">Score</div><div class="v">${s.avg.toFixed(1)}<span class="max">/5.0</span></div></div>
+      </div>
+
+      <div class="grid-4">
+        <div class="stat"><div class="label">Revenue</div><div class="value">${fmtM(t.revenue)}</div><div class="sub">${t.employees} employees</div></div>
+        <div class="stat"><div class="label">EBITDA</div><div class="value">${fmtM(t.ebitda)}</div><div class="sub">${fmtPct(t.ebitda/t.revenue)} margin</div></div>
+        <div class="stat"><div class="label">Purchase</div><div class="value">${fmtM(t.proposedPrice)}</div><div class="sub">${s.purchaseMultipleOfEbitda.toFixed(1)}x EBITDA</div></div>
+        <div class="stat"><div class="label">Projected MOIC</div><div class="value" style="color:var(--good)">${s.moic.toFixed(1)}x</div><div class="sub">at exit</div></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>Readiness by dimension</h2>
+      <div class="grid-2">
+        <div><canvas id="scorecard-radar" height="320"></canvas></div>
+        <div>
+          ${DILIGENCE_DIMS.map(d => {
+            const sc = t.scores[d.id] || { score: 0, notes: "" };
+            const cls = sc.score <= 2 ? "bad" : sc.score === 3 ? "warn" : "good";
+            return `
+              <div style="margin-bottom:14px;">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                  <div style="font-weight:600;">${d.label}</div>
+                  <span class="badge ${cls}">${sc.score}/5</span>
+                </div>
+                <div style="font-size:12px;color:var(--muted);margin-top:2px;">${escapeHtml(sc.notes || "(no notes)")}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>Top 3 AI-enabled EBITDA opportunities</h2>
+      <p style="color:var(--muted);">Risk-adjusted, prioritized for first 12–18 months post-close.</p>
+      <table>
+        <thead><tr><th>Opportunity</th><th>Category</th><th>EBITDA lift (adj.)</th><th>EV impact at exit</th></tr></thead>
+        <tbody>
+          ${topOpps.map(o => `
+            <tr>
+              <td class="title-cell">${escapeHtml(o.title)}<div class="desc">${escapeHtml(o.desc)}</div></td>
+              <td><span class="badge gray">${categoryLabel(o.category)}</span></td>
+              <td class="impact-cell">${fmtM(o.ebitdaImpact * o.confidence)}</td>
+              <td class="ev-cell">+${fmtM(o.ebitdaImpact * o.confidence * t.targetExitMultiple)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;">
+        <div><strong>Total identified EBITDA lift (all ${t.opportunities.length} opportunities, risk-adjusted):</strong></div>
+        <div style="color:var(--good);font-weight:700;">${fmtM(s.totalEBITDALift)}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <div><strong>Total EV creation at exit:</strong></div>
+        <div style="color:var(--indigo-dark);font-weight:700;">${fmtM(s.evImpactAtExit)}</div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>Key risks & red flags</h2>
+      ${t.risks.length === 0 ? `<p style="color:var(--muted);">No risks recorded.</p>` : `
+        <ul class="risk-list">
+          ${t.risks.map(r => `<li><span class="flag">⚑</span><span>${escapeHtml(r)}</span></li>`).join("")}
+        </ul>
+      `}
+    </div>
+
+    <div class="report-section">
+      <h2>Recommended first-90-day plan post-close</h2>
+      <ol style="padding-left: 20px; color: var(--text);">
+        <li><strong>Day 0–30:</strong> Deep-dive validation of the top 3 opportunities with the incoming management team; confirm data availability and internal ownership.</li>
+        <li><strong>Day 30–60:</strong> Launch the lowest-risk, highest-return opportunity as a proof point. Establish measurement baseline before scaling.</li>
+        <li><strong>Day 60–90:</strong> Complete any remediation on the two weakest readiness dimensions (${DILIGENCE_DIMS.slice().sort((a,b) => (t.scores[a.id]?.score||3) - (t.scores[b.id]?.score||3)).slice(0,2).map(d => d.label).join(" and ")}) before broader rollout.</li>
+        <li><strong>Ongoing:</strong> Report EBITDA-attributable AI impact quarterly into the value-creation review with the sponsor.</li>
+      </ol>
+    </div>
+  `;
+}
+
+function drawScorecardImpact() {
+  // radar drawn separately by drawDiligenceRadar
+}
+
+/* ---------- SETTINGS MODAL ---------- */
+function openSettings() {
+  const key = localStorage.getItem(API_KEY_STORAGE) || "";
+  const model = localStorage.getItem(MODEL_STORAGE) || "claude-haiku-4-5-20251001";
+  const isOn = !!key;
+  document.getElementById("modal-mount").innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)closeSettings()">
+      <div class="modal">
+        <h2>Settings</h2>
+        <div class="subtitle">Wire up live Claude-generated opportunities. Your API key stays in this browser only — no server, no tracking.</div>
+
+        <div class="status ${isOn ? "on" : "off"}">
+          ${isOn ? "Live AI generation is ON — the ✨ Suggest with AI button calls Claude." : "No API key set — the ✨ Suggest with AI button uses sample suggestions."}
+        </div>
+
+        <div class="field">
+          <label>Anthropic API key</label>
+          <input id="setting-key" type="password" placeholder="sk-ant-…" value="${escapeAttr(key)}">
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Get one at console.anthropic.com. This is a prototype — in production the key would live on a backend.</div>
+        </div>
+
+        <div class="field">
+          <label>Model</label>
+          <select id="setting-model">
+            <option value="claude-haiku-4-5-20251001" ${model==='claude-haiku-4-5-20251001'?'selected':''}>Claude Haiku 4.5 (fast, cheap)</option>
+            <option value="claude-sonnet-4-5-20251001" ${model==='claude-sonnet-4-5-20251001'?'selected':''}>Claude Sonnet 4.5 (higher quality)</option>
+          </select>
+        </div>
+
+        <div class="actions">
+          <div class="left">
+            <button class="btn danger" onclick="clearApiKey()">Clear key</button>
+          </div>
+          <div>
+            <button class="btn" onclick="closeSettings()">Cancel</button>
+            <button class="btn primary" onclick="saveSettings()">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function closeSettings() { document.getElementById("modal-mount").innerHTML = ""; }
+function saveSettings() {
+  const k = document.getElementById("setting-key").value.trim();
+  const m = document.getElementById("setting-model").value;
+  if (k) localStorage.setItem(API_KEY_STORAGE, k);
+  localStorage.setItem(MODEL_STORAGE, m);
+  closeSettings();
+  render();
+}
+function clearApiKey() {
+  localStorage.removeItem(API_KEY_STORAGE);
+  closeSettings();
+  render();
+}
+
+/* ---------- UTIL ---------- */
+function escapeHtml(s) { return String(s||"").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
+function escapeAttr(s) { return escapeHtml(s); }
+function bindEvents() {}
+
+/* ---------- BOOT ---------- */
+render();
+</script>
+</body>
+</html>
